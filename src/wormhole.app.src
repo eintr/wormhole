@@ -1,0 +1,12 @@
+{application, wormhole,
+ [
+  {description, "This is a tunnel application."},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { wormhole_app, []}},
+  {env, []}
+ ]}.
