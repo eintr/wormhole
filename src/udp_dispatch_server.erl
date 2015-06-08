@@ -31,7 +31,7 @@ start_link(SockAddr) ->
 init([{Addr, Port}]) ->
 	case gen_udp:open(Port, [binary, {ip, Addr}]) of
 		{ok, Socket} ->
-			{ok, _Pid} = connection_fsm:start_link(Socket, ?CONNID_ANY),
+			{ok, _Pid} = connection_fsm:start_link(Socket, ?CONNID_CTRL),
 			{ok, _Pid} = connection_fsm:start_link(Socket, ?CONNID_INVAL),
 			FilterList = [],
 			StatList = [],

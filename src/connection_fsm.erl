@@ -36,7 +36,7 @@ start(Socket, ConnID) ->
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([Socket, ?CONNID_ANY]) ->
+init([Socket, ?CONNID_CTRL]) ->
 	{ok, FecPID} = fec_server:start_link(),
 	ConnState = #conn_state {
 	  conn_id = ConnID,
@@ -57,10 +57,12 @@ init([Socket, ConnID]) ->
 	%%ok = gen_server:call(udp_dispatcher, {register, ConnID}),
     {ok, relay, ConnState}.
 
-control({net_packet, Pakcet}, State) ->
-	case gen_server:call(State#conn_state.fec_pid, {decode, Pakcet}) of
+control({net_packet, Packet}, State) ->
+	case gen_server:call(State#conn_state.fec_pid, {decode, Packet}) of
 		{ok, Packets} ->
 			llist:foreach(control_protocol/1, Packets),
+			{next_state, control, State};
+		_ ->
 			{next_state, control, State};
 	end;
 control(_Event, State) ->

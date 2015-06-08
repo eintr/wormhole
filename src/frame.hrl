@@ -7,7 +7,7 @@
 -define(CODE_PONG, 5).
 -define(CODE_CLOSE, 6).
 
--define(CONNID_ANY, 16#0000000000000000).
+-define(CONNID_CTRL, 16#0000000000000000).
 -define(CONNID_INVAL, 16#ffffffffffffffff).
 
 -define(SALT_LENGTH, 8).
