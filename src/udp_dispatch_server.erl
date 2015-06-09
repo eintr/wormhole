@@ -29,6 +29,7 @@ start_link(SockAddr) ->
 %% ------------------------------------------------------------------
 
 init([{Addr, Port}]) ->
+	io:format("~s is initiating.\n", [?MODULE]),
 	case gen_udp:open(Port, [binary, {ip, Addr}]) of
 		{ok, Socket} ->
 			{ok, _Pid} = connection_fsm:start_link(Socket, ?CONNID_CTRL),

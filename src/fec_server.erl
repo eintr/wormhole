@@ -2,11 +2,8 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
--record(fec_info, {
-		  fecg_id,
-		  fec_seq,
-		  fec_gsize
-		 }).
+-include("frame.hrl").
+-include("fec.hrl").
 
 -record(fec_frame, {
 		  seq,
@@ -18,7 +15,7 @@
 		  time,
 		  width,
 		  pending_frames=[]
-		 })
+		 }).
 
 -record(fec_encode_config, {
 		  width=2,
@@ -58,35 +55,44 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
-    {ok, {#fec_config{}, 0, []}}.
+    {ok, {#fec_encode_config{}, #fec_decode_config{}}}.
 
 handle_call({config, _}, _From, State) ->
     {reply, todo, State};
-handle_call({decode, Packet}, _From, {{Config, PendingFecg}, {Min, PendingFecg}}=State) ->
-	{ok, {_ConnID, Fec, LineData}} = decode_fec(Packet),
-	case llist:keyfind(Fec#fec_info.fecg_id, 1, PendingFecg) of
-		{Fec#fec_info.fecg_id, Fec#fec_info.fec_gsize, Buffer} ->
-			NewBuffer = Buffer ++ [{Fec#fec_info.fec_seq, LineData}],
-			case buffer_process() of
+handle_call({decode, F}, _From, {E, D}) ->
+	FecGid = F#frame.fec_info#fec_info.fecg_id,
+	FecSeq = F#frame.fec_info#fec_info.fec_seq,
+	FecGsize = F#frame.fec_info#fec_info.fec_gsize,
+	case llist:keyfind(FecGid, 1, D#fec_decode_config.pending_fecgs) of
+		{FecGid, FecGsize, Buffer} ->
+			NewBuffer = Buffer ++ [{FecSeq, F#frame.payload}],
+			case buffer_process(NewBuffer) of
 				{ok, Packets} ->
-					{reply, {ok, Packets}, NewState};
-				{need_more} ->
-					{reply, {need_more}, NewState};
-				{too_late} ->
-					{reply, {too_late}, NewState}
+					{reply, {ok, Packets}, {E, D}};
+				completed ->
+					NewPendingFecgs = lists:keydelete(FecGid, 1, D#fec_decode_config.pending_fecgs),
+					NewMin = min(D#fec_decode_config.minimal_gid, FecGid),
+					NewD = D#fec_decode_config{pending_fecgs=NewPendingFecgs, minimal_gid=NewMin},
+					{reply, ok, {E, NewD}};
+				need_more ->
+					{reply, need_more, {E, D}};
+				too_late ->
+					{reply, too_late, {E, D}}
 			end;
+		{FecGid, _FixedSize, Buffer} ->
+			io:format("Differrent fec_gsize(~p) within a fec group with fec_gsize(~p), drop it!\n", [FecGsize, _FixedSize]),
+			{reply, {invalid_gsize}, {E, D}};
 		false ->
-			Fec
-			{}
+			{reply, {ok, [F]}, {E, D}}
 	end;
-handle_call({encode, {ConnID, LineData}, Flags}, _From, State) ->
-    {reply, {ok, [Packet]}, State};
+handle_call({encode, F, Flags}, _From, State) ->
+    {reply, {ok, [F]}, State};
 handle_call({conn_add, ConnID}, _From, State) ->
-    {reply, ok, NewState};
+    {reply, ok, State};
 handle_call({conn_add, ConnID, FecConfig}, _From, State) ->
-    {reply, ok, NewState};
+    {reply, ok, State};
 handle_call({conn_delete, ConnID}, _From, State) ->
-    {reply, ok, NewState};
+    {reply, ok, State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -106,13 +112,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-decode_fec(Packet) ->
-	    <<ConnectionID:64/big-integer, FecInfo:40/big-integer, LineData/binary>> = Packet,
-		    <<  Fec#fec_info.fecg_id:24/big-integer,
-				        Fec#fec_info.fec_seq:8/big-integer,
-						        Fec#fec_info.fec_gsize:8/big-integer >> = FecInfo;
-    {ok, {ConnectionID, Fec, LineData}}.
-
-encode_fec(Frame, {ConnectionID, Fec, LineData}) ->
-	    {}.
+buffer_process(Buf) ->
+	ok.
 

@@ -7,12 +7,4 @@
 -define(CODE_PONG, 5).
 -define(CODE_CLOSE, 6).
 
--define(CONNID_CTRL, 16#0000000000000000).
--define(CONNID_INVAL, 16#ffffffffffffffff).
-
--record(frame, {
-		  connection_id,
-		  fec_info,
-		  payload
-		 }).
 

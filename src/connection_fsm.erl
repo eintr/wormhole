@@ -2,6 +2,8 @@
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
+-include("frame.hrl").
+
 -record(conn_state, {
 		  conn_id,
 		  fec_pid,
@@ -39,7 +41,7 @@ start(Socket, ConnID) ->
 init([Socket, ?CONNID_CTRL]) ->
 	{ok, FecPID} = fec_server:start_link(),
 	ConnState = #conn_state {
-	  conn_id = ConnID,
+	  conn_id = ?CONNID_CTRL,
 	  fec_pid = FecPID,
 	  tun_pid = 0,
 	  send_socket = Socket
@@ -63,7 +65,7 @@ control({net_packet, Packet}, State) ->
 			llist:foreach(control_protocol/1, Packets),
 			{next_state, control, State};
 		_ ->
-			{next_state, control, State};
+			{next_state, control, State}
 	end;
 control(_Event, State) ->
 	io:format("conn/control: Unknown event: ~p\n", [_Event]),
@@ -116,3 +118,5 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 control_protocol(Packet, Config) ->
+	ok.
+
