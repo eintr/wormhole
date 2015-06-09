@@ -23,6 +23,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-	WormHole = ?CHILD(udp_dispatch_server, worker),
-    {ok, { {one_for_one, 5, 10}, [WormHole]} }.
+	TxRx = ?CHILD(transcvr_pool, worker),
+	AuthSvr = ?CHILD(auth_server, worker),
+    {ok, { {one_for_one, 5, 10}, [TxRx, AuthSvr]} }.
 

@@ -46,6 +46,7 @@ init([Socket, ?CONNID_CTRL]) ->
 	  tun_pid = 0,
 	  send_socket = Socket
 	 },
+	ok = gen_server:call(udp_dispatcher, {register, {?CONNID_CTRL, FecPID}}),
 	{ok, control, ConnState};
 init([Socket, ConnID]) ->
 	{ok, FecPID} = fec_server:start_link(ConnID),
@@ -56,7 +57,7 @@ init([Socket, ConnID]) ->
 	  tun_pid = TunPID,
 	  send_socket = Socket
 	 },
-	%%ok = gen_server:call(udp_dispatcher, {register, ConnID}),
+	ok = gen_server:call(udp_dispatcher, {register, {ConnID, FecPID}}),
     {ok, relay, ConnState}.
 
 control({net_packet, Packet}, State) ->
@@ -70,6 +71,15 @@ control({net_packet, Packet}, State) ->
 control(_Event, State) ->
 	io:format("conn/control: Unknown event: ~p\n", [_Event]),
 	{next_state, control, State}.
+
+control({admin, new_conn, {ConnID, SharedKey, Uname, Passwd, Addr, Port}=Arg}, _From, State) ->
+	gen_server:call(State#conn_state.fec_pid, {encode, frame:encode(#frame{connection_id=?CONNID_CTRL, payload=msg:encode(chap, {})}), [push]});
+	{next_state, control_wait_chap_result, {State, Arg}};
+control(_Event, _From, State) ->
+	io:format("Unknown event: ~p from ~p\n", [_Event, _From]),
+    {reply, unknown_event, control, State}.
+
+control_wait_chap_result({net_packet, Pakcet}, {State, Arg}) ->
 
 relay({net_packet, Pakcet}, State) ->
 	case gen_server:call(State#conn_state.fec_pid, {decode, Pakcet}) of
@@ -108,8 +118,9 @@ handle_info({}, StateName, State) ->
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
-terminate(_Reason, _StateName, _State) ->
-    ok.
+terminate(_Reason, _StateName, State) ->
+	ok = tuncer:close(State#conn_state.tun_pid),
+	ok.
 
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.

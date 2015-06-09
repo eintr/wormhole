@@ -4,3 +4,8 @@
 		  fec_gsize
 		 }).
 
+-record(fec_frame, {
+		  fec_info,
+		  payload
+		 }).
+

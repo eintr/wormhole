@@ -65,8 +65,7 @@ handle_call({decode, F}, _From, {E, D}) ->
 	FecGsize = F#frame.fec_info#fec_info.fec_gsize,
 	case llist:keyfind(FecGid, 1, D#fec_decode_config.pending_fecgs) of
 		{FecGid, FecGsize, Buffer} ->
-			NewBuffer = Buffer ++ [{FecSeq, F#frame.payload}],
-			case buffer_process(NewBuffer) of
+			case buffer_process({FecSeq, F#frame.payload}, Buffer) of
 				{ok, Packets} ->
 					{reply, {ok, Packets}, {E, D}};
 				completed ->
@@ -76,6 +75,8 @@ handle_call({decode, F}, _From, {E, D}) ->
 					{reply, ok, {E, NewD}};
 				need_more ->
 					{reply, need_more, {E, D}};
+				duplicated ->
+					{reply, duplicated, {E, D}};
 				too_late ->
 					{reply, too_late, {E, D}}
 			end;

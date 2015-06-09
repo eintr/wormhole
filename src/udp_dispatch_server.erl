@@ -51,13 +51,8 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({udp, Socket, SAddr, SPort, Packet}, {Socket, FilterList, _StatList}=State) ->
-	<<ConnID:64/unsigned-big-integer, _/binary>> = Packet,
-	case lists:keyfind(ConnID, 1, FilterList) of
-		{ConnID, {SAddr, SPort}, ProcessFunc} ->
-			ProcessFunc({{SAddr, SPort}, Packet});
-		false ->
-			io:format("Unknown connection id ~p\n", [ConnID])
-	end,
+	{ok, FecFrame} = fec_frame:decode(Packet),
+	fec_server ! {up, {SAddr, SPort}, FecFrame}
     {noreply, State};
 handle_info(_Info, State) ->
 	io:format("Unknown info: ~p\n", [_Info]),
