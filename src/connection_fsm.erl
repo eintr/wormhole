@@ -53,7 +53,6 @@ init([Socket, ConnID]) ->
 	{ok, TunPID} = tuncer:create("", [tun, {active, true}]),
 	ConnState = #conn_state {
 	  conn_id = ConnID,
-	  fec_pid = FecPID,
 	  tun_pid = TunPID,
 	  send_socket = Socket
 	 },
