@@ -46,13 +46,13 @@ init([AddrList]) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_info({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
+handle_cast({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
 	[H|T] = DownIndex,
 	ok = gen_udp:send(H, DAddr, DPort, FrameBin),
 	{noreply, {T++[H]}};
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
 handle_info({udp, _Socket, SAddr, SPort, PacketBin}, State) ->
 	fec_server ! {up, {SAddr, SPort}, PacketBin},
 	{noreply, State};

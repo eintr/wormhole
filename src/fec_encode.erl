@@ -5,24 +5,11 @@
 -include("frame.hrl").
 -include("fec.hrl").
 
--record(fec_frame, {
-		  seq,
-		  data
-		 }).
-
 -record(fecg_slot, {
 		  fecg_id,
 		  time,
 		  width,
 		  pending_frames=[]
-		 }).
-
--record(fec_encode_config, {
-		  width=2,
-		  interleave=1,
-		  timeout=10000,	%% in ms
-		  current_gid,
-		  pending_fecgs=[]
 		 }).
 
 -record(fec_decode_config, {

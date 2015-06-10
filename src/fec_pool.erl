@@ -8,7 +8,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -21,37 +21,37 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link(Socket) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Socket], []).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([Socket]) ->
-	DownIndex = [],	%% of {{addr, port}, fec_encoder_pid}
-    {ok, {[]}}.
+init([]) ->
+    {ok, {}}.
 
 handle_call(_Request, _From, State) ->
     {reply, null, State}.
 
+handle_cast({up, FromAddr, FrameBin}, State) ->
+	gen_server:cast(connection_pool, {up, [{FromAddr, FrameBin}]}),
+    {noreply, State};
+handle_cast({down, ToAddrList, FramePayload}, State) ->
+	lists:foreach(fun ({Addr, _Port}=ToAddr)->
+			case get(Addr) of
+				{Pid} ->
+					gen_fsm:send_event(Pid, {down, ToAddr, FramePayload});
+				undefined ->
+					{ok, Pid} = fec_node:start(Addr),
+					put(Addr, {Pid}),
+					gen_fsm:send_event(Pid, {down, ToAddr, FramePayload})
+			end
+		end, ToAddrList),
+		{noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({up, FromAddr, FrameBin}, State) ->
-    {noreply, State}.
-handle_info({down, ToAddrList, FramePayload}, {DownIndex}=State) ->
-	lists:foreach(fun (ToAddr)->
-			case lists:keyfind(ToAddr, 1, DownIndex) of
-				{ToAddr, Pid} ->
-					Pid ! {down, ToAddr, FramePayload},
-					{noreply, State};
-				false ->
-					{ok, Pid} = fec_encoder:start(ToAddr),
-					
-					{noreply, {DownIndex ++ [{ToAddr, Pid}]}}
-			end
-		end, ToAddrList);
 handle_info(_Info, State) ->
     {noreply, State}.
 

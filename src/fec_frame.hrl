@@ -1,3 +1,6 @@
+
+-define(GIDMAX, 16#ffffff).
+
 -record(fec_info, {
 		  fecg_id,
 		  fec_seq,

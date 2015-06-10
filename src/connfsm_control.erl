@@ -1,20 +1,21 @@
--module(fec_node).
+-module(connfsm_relay).
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
--include("fec_frame.hrl").
+-include("msg.hrl").
+-include("protocol.hrl").
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start/1]).
+-export([start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
 %% ------------------------------------------------------------------
 
--export([init/1, loop/2, loop/3, handle_event/3,
+-export([init/1, control/2, control/3, handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3,
          code_change/4]).
 
@@ -22,36 +23,40 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start(Addr) ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [Addr], []).
+start_link() ->
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([Addr]) ->
-	put(peeraddr, Addr),
-	put(gsize, 2),
-	put(interleave, 1),
-	put(timeout, 10000),
-	put(current_gid, 1),
-    {ok, loop, {}}.
+init(State) ->
+	{ok, control, State}.
 
-loop({down, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
-	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize)},
-	put(current_gid, next_gid(get(current_gid))),
-	FecFrameBin = fec_frame:encode(#fec_frame{fec_info=FecInfo, payload=MsgBin}),
-	gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin}),
-	{next_state, loop, State};
-loop({up, FromAddr, FecFrameBin}, State) ->	%% TODO: Do the read FEC magic.
-	FecFrame = fec_frame:decode(FecFrameBin),
-	gen_server:cast(conn_pool, {up, [{FromAddr, FecFrame#fec_frame.payload}] }),
-	{next_state, loop, State};
-loop(_Event, State) ->
-    {next_state, loop, State}.
+control({up, FromAddr, Msg}, State) ->
+	case Msg#msg.code of
+		?CODE_CHAP ->
+			ok;
+		?CODE_CHAP_CONNECT ->
+			ok;
+		?CODE_CHAP_REJECT ->
+			ok;
+		?CODE_ECHO ->
+			ok;
+		_Code ->
+			io:format("Control channel doesn't deal with msg ~p, dropped.\n", [_Code])
+	end,
+	{next_state, control, State};
+control(_Event, State) ->
+	io:format("conn/control: Unknown event: ~p\n", [_Event]),
+	{next_state, control, State}.
 
-loop(_Event, _From, State) ->
-    {reply, ok, state_name, State}.
+control({admin, new_conn, {ConnID, SharedKey, Uname, Passwd, Addr, Port}=Arg}, _From, State) ->
+	gen_server:call(State#conn_state.fec_pid, {encode, frame:encode(#frame{connection_id=?CONNID_CTRL, payload=msg:encode(chap, {})}), [push]}),
+	{next_state, control_wait_chap_result, {State, Arg}};
+control(_Event, _From, State) ->
+	io:format("Unknown event: ~p from ~p\n", [_Event, _From]),
+    {reply, unknown_event, control, State}.
 
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.
@@ -59,11 +64,14 @@ handle_event(_Event, StateName, State) ->
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
 
+handle_info({}, StateName, State) ->
+    {next_state, StateName, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
-terminate(_Reason, _StateName, _State) ->
-    ok.
+terminate(_Reason, _StateName, State) ->
+	ok = tuncer:close(State#conn_state.tun_pid),
+	ok.
 
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.
@@ -71,9 +79,4 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-next_gid(?GIDMAX) ->
-	0;
-next_gid(N) ->
-	N+1.
 
