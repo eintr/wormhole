@@ -1,4 +1,4 @@
--module(connfsm_relay).
+-module(connfsm_control_server).
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
@@ -9,7 +9,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -36,10 +36,6 @@ init(State) ->
 control({up, FromAddr, Msg}, State) ->
 	case Msg#msg.code of
 		?CODE_CHAP ->
-			ok;
-		?CODE_CHAP_CONNECT ->
-			ok;
-		?CODE_CHAP_REJECT ->
 			ok;
 		?CODE_ECHO ->
 			ok;

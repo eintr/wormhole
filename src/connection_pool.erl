@@ -21,21 +21,24 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link(Args) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Args], []).
+start_link(Flags) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Flags], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(Args) ->
+init([Flags]) ->
+	{ok, Pid} = connfsm_control:start_link(?CONNID_CTRL),
+	put(?CONNID_CTRL, {Pid}),
     {ok, Args}.
 
-handle_call({create_conn, {Connid}}, _From, State) ->
+handle_call({create_conn, {ConnCfg}}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(Connid),
 	put(Connid, {Pid}),
 	{reply, ok, State};
 handle_call(_Request, _From, State) ->
+	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),
     {reply, ok, State}.
 
 handle_cast({up, Msgs}, State) ->
@@ -50,9 +53,11 @@ handle_cast({up, Msgs}, State) ->
 				  end, Msgs),
 	{noreply, State};
 handle_cast(_Msg, State) ->
+	io:format("~p: Don't know how to deal with cast ~p\n", [?SERVER, _Info]),
     {noreply, State}.
 
 handle_info(_Info, State) ->
+	io:format("~p: Don't know how to deal with info ~p\n", [?SERVER, _Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

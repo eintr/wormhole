@@ -5,6 +5,7 @@
 		 }).
 
 -record(msg_body_chap, {
+		  conn_id_client,
 		  salt,
 		  prefix,
 		  md5,
@@ -12,7 +13,8 @@
 		 }).
 
 -record(msg_body_connect, {
-		  conn_id,
+		  conn_id_client,
+		  conn_id_server,
 		  server_tun_addr,
 		  client_tun_addr,
 		  route_prefixes

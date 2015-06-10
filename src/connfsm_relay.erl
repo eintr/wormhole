@@ -16,7 +16,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start/1]).
+-export([start/1, start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -31,6 +31,8 @@
 %% ------------------------------------------------------------------
 
 start(ConnID) ->
+    gen_fsm:start({local, ?SERVER}, ?MODULE, [ConnID], []).
+start_link(ConnID) ->
     gen_fsm:start({local, ?SERVER}, ?MODULE, [ConnID], []).
 
 %% ------------------------------------------------------------------

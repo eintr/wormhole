@@ -38,6 +38,8 @@ init([Addr]) ->
     {ok, loop, {}}.
 
 loop({down, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
+	loop({down_push, ToAddr, MsgBin}, State);
+loop({down_push, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
 	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize)},
 	put(current_gid, next_gid(get(current_gid))),
 	FecFrameBin = fec_frame:encode(#fec_frame{fec_info=FecInfo, payload=MsgBin}),
