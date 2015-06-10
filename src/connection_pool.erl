@@ -3,6 +3,7 @@
 -define(SERVER, ?MODULE).
 
 -include("msg.hrl").
+-include("protocol.hrl").
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -31,9 +32,9 @@ start_link(Flags) ->
 init([Flags]) ->
 	{ok, Pid} = connfsm_control:start_link(?CONNID_CTRL),
 	put(?CONNID_CTRL, {Pid}),
-    {ok, Args}.
+    {ok, Flags}.
 
-handle_call({create_conn, {ConnCfg}}, _From, State) ->
+handle_call({create_conn, ConnCfg}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(Connid),
 	put(Connid, {Pid}),
 	{reply, ok, State};

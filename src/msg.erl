@@ -1,5 +1,5 @@
 -module(msg).
--export([encode/1, decode/1]).
+-export([encode/1, decode/1, connid_comb/2, connid_split/1]).
 
 -include("msg.hrl").
 -include("protocol.hrl").
