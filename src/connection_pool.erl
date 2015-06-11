@@ -54,7 +54,7 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 handle_cast({up, FromAddr, MsgBin}, State) ->
-	Msg = msg:decode(MsgBin),
+	{ok, Msg} = msg:decode(MsgBin),
 	case get(Msg#msg.connection_id) of
 		{Pid} ->
 			gen_fsm:event(Pid, {up, FromAddr, Msg});
