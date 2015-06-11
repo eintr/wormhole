@@ -35,8 +35,7 @@ init(State) ->
 	put(server_conn_id, 1),
 	{ok, control, State}.
 
-control({up, {FromAddr, FromPort}, MsgBin}, State) ->
-	{ok, Msg} = msg:decode(MsgBin),
+control({up, {FromAddr, FromPort}, Msg}, State) ->
 	case Msg#msg.code of
 		?CODE_CHAP ->
 			%% TODO: Do the real auth!
