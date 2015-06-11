@@ -45,9 +45,9 @@ init([]) ->
 	io:format("~p: inited.\n", [?MODULE]),
 	{ok, {}}.
 
-handle_call({create_conn, ConnCfg}, _From, State) ->
-	{ok, Pid} = connfsm_relay:start(ConnCfg),
-	put(msg:connid_combine(ConnCfg#msg_body_connect.conn_id_server, ConnCfg#msg_body_connect.conn_id_client), {Pid}),
+handle_call({create_conn, ConnID}, _From, State) ->
+	{ok, Pid} = connfsm_relay:start(ConnID),
+	put(ConnID, {Pid}),
 	{reply, ok, State};
 handle_call(_Request, _From, State) ->
 	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),

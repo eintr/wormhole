@@ -32,13 +32,29 @@ start_link() ->
 
 init(State) ->
 	io:format("~p: inited.\n", [?MODULE]),
+	put(server_conn_id, 1),
 	{ok, control, State}.
 
-control({up, _FromAddr, Msg}, State) ->
+control({up, {FromAddr, FromPort}, MsgBin}, State) ->
+	{ok, Msg} = msg:decode(MsgBin),
 	case Msg#msg.code of
 		?CODE_CHAP ->
+			%% TODO: Do the real auth!
+			MsgChap = Msg#msg.body,
+			ok = gen_server:call(connection_pool, {create_conn, msg:connid_combine(get(server_conn_id), Msg#msg.body#msg_body_chap.conn_id_client)}),
+			MsgConnect=#msg{connection_id=?CONNID_CTRL,
+					code=?CODE_CHAP_CONNECT,
+					body=#msg_body_connect{	conn_id_client=MsgChap#msg_body_chap.conn_id_client, 
+							conn_id_server=get(server_conn_id),
+							server_tun_addr="172.199.0.1",
+							client_tun_addr="172.200.0.1",
+							route_prefixes=[]}},
+			MsgConnectBin = msg:encode(MsgConnect),
+			gen_server:cast(fec_pool, {down_push, {FromAddr, FromPort}, MsgConnectBin}),
+			put(server_conn_id, get(server_conn_id)+1),
 			ok;
 		?CODE_ECHO ->
+			%% TODO
 			ok;
 		_Code ->
 			io:format("Control channel doesn't deal with msg ~p, dropped.\n", [_Code])
