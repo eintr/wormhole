@@ -34,8 +34,9 @@ init([]) ->
 handle_call(_Request, _From, State) ->
     {reply, null, State}.
 
-handle_cast({up, FromAddr, FrameBin}, State) ->
-	gen_server:cast(connection_pool, {up, [{FromAddr, FrameBin}]}),
+handle_cast({up, FromAddr, FrameBin}, State) ->	%% TODO: Do the real fec magic
+	Frame = fec_frame:decode(FrameBin),
+	gen_server:cast(connection_pool, {up, FromAddr, Frame#fec_frame.payload}),
     {noreply, State};
 handle_cast({down, ToAddrList, FramePayload}, State) ->
 	lists:foreach(fun ({Addr, _Port}=ToAddr)->

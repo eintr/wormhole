@@ -30,9 +30,17 @@ start_link(Flags) ->
 %% ------------------------------------------------------------------
 
 init([Flags]) ->
-	{ok, Pid} = connfsm_control:start_link(?CONNID_CTRL),
+	{ok, Pid} = case lists:keyfind(mode, Flags) of
+					server ->
+						connfsm_control_server:start_link();
+					client ->
+						connfsm_control_client:start_link();
+					_ ->
+						io:format("Running mode is unknown."),
+						crash
+				end,
 	put(?CONNID_CTRL, {Pid}),
-    {ok, Flags}.
+	{ok, Flags}.
 
 handle_call({create_conn, ConnCfg}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(ConnCfg),
@@ -42,16 +50,14 @@ handle_call(_Request, _From, State) ->
 	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),
     {reply, ok, State}.
 
-handle_cast({up, Msgs}, State) ->
-	lists:foreach(fun ({FromAddr, MsgBin})->
-						  Msg = msg:decode(MsgBin),
-						  case get(Msg#msg.connection_id) of
-							  {Pid} ->
-								  gen_fsm:event(Pid, {up, FromAddr, Msg});
-							  undefined ->
-								  io:format("Got msg to unknown connection id: ~p\n", [Msg#msg.connection_id])
-						  end
-				  end, Msgs),
+handle_cast({up, FromAddr, MsgBin}, State) ->
+	Msg = msg:decode(MsgBin),
+	case get(Msg#msg.connection_id) of
+		{Pid} ->
+			gen_fsm:event(Pid, {up, FromAddr, Msg});
+		undefined ->
+			io:format("Got msg to unknown connection id: ~p\n", [Msg#msg.connection_id])
+	end,
 	{noreply, State};
 handle_cast(_Msg, State) ->
 	io:format("~p: Don't know how to deal with cast ~p\n", [?SERVER, _Msg]),

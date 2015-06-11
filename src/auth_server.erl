@@ -29,9 +29,10 @@ start_link() ->
 init([AccountList]) ->
     {ok, {AccountList}}.
 
-handle_call({auth, {Username, Shadow}}, _From, {AccountList}) ->
+handle_call({auth, {Username, _Salt, _MD5}}, _From, {AccountList}) ->
 	case lists:keyfind(Username, 1, AccountList) of
-		{ok, {Username, Password, UserInfo}} ->
+		{ok, {Username, _Password, UserInfo}} ->
+			%% TODO: Do the real auth.
 			{reply, {pass, UserInfo}, {AccountList}};
 		{failed, Reason} ->
 			{reply, {failed, Reason}, {AccountList}}
