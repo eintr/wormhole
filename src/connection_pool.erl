@@ -9,7 +9,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -22,21 +22,22 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link(Flags) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Flags], []).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([Flags]) ->
-	{ok, Pid} = case lists:keyfind(mode, Flags) of
+init([]) ->
+	{ok, Config} = file:script(application:get_env(configfile)),
+	{ok, Pid} = case lists:keyfind(mode, Config) of
 					server ->
 						connfsm_control_server:start_link();
 					client ->
 						connfsm_control_client:start_link();
-					_ ->
-						io:format("Running mode is unknown."),
+					_M ->
+						io:format("~p: Running mode ~p is unknown.\n", [?MODULE, _M]),
 						crash
 				end,
 	put(?CONNID_CTRL, {Pid}),
@@ -76,4 +77,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+load_accounts(Filename) ->
+	{ok, Config} = file:script(Filename),
+	{accounts, AccountList} = lists:keyfind(accounts, 1, Config),
+	AccountList.
 

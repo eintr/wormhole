@@ -6,7 +6,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -19,14 +19,27 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link(AddrList) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [AddrList], []).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([AddrList]) ->
+init([]) ->
+	{ok, Config} = file:script(application:get_env(configfile)),
+	LocalAddrs = case lists:keyfind(local_addrs, Config) of
+					 {local_addrs, AddrList} ->
+						 lists:filtermap(fun (Str)->
+										   case inet:parse_ipv4_address(Str) of 
+											   {ok, Addr} -> {true, Addr};
+											   {error, _} -> false
+										   end end, AddrList);
+					 fasle ->
+						 [{0,0,0,0}]
+				 end,
+	{local_ports, LocalPorts} = lists:keyfind(local_ports, Config),
+	AddrList = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts];
 	Sockets = lists:map(fun ({Addr, Port})->
 							case gen_udp:open(Port, [binary, {ip, Addr}]) of
 								{ok, Socket} ->
@@ -34,6 +47,7 @@ init([AddrList]) ->
 								_ -> {error, {Addr, Port}, "Bind error."}
 							end
 					end, AddrList),
+	% Report error.
 	lists:foreach(fun ({error, Addr, Reason})->
 						  io:format("Failed to open socket on ~p: ~p\n", [Addr, Reason]);
 					  (_) -> nothing_todo

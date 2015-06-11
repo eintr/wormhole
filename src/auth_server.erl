@@ -20,15 +20,19 @@
 %% ------------------------------------------------------------------
 
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [[{"testuser", "123qweasd", {}}]], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([AccountList]) ->
-    {ok, {AccountList}}.
+init([]) ->
+	{ok, Filename} = application:get_env(configfile),
+	io:format("~p is initting, with ~p\n", [?MODULE, Filename]),
+    {ok, {load_accounts(Filename)}}.
 
+handle_call({reload_conf, Filename}, _From, {AccountList}) ->
+	{reply, ok, {load_accounts(Filename)}};
 handle_call({auth, {Username, _Salt, _MD5}}, _From, {AccountList}) ->
 	case lists:keyfind(Username, 1, AccountList) of
 		{ok, {Username, _Password, UserInfo}} ->
@@ -55,4 +59,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+load_accounts(Filename) ->
+	{ok, Config} = file:script(Filename),
+	{accounts, AccountList} = lists:keyfind(accounts, 1, Config),
+	AccountList.
 
