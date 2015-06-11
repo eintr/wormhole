@@ -1,10 +1,10 @@
 -module(msg).
--export([encode/1, decode/1, connid_combine/1, connid_split/1]).
+-export([encode/1, decode/1, connid_combine/2, connid_split/1]).
 
 -include("msg.hrl").
 -include("protocol.hrl").
 
-connid_combine({S, C}) ->
+connid_combine(S, C) ->
 	S*16#100000000 + C.
 
 connid_split(ID) ->
