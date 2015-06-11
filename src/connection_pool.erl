@@ -57,7 +57,7 @@ handle_cast({up, FromAddr, MsgBin}, State) ->
 	{ok, Msg} = msg:decode(MsgBin),
 	case get(Msg#msg.connection_id) of
 		{Pid} ->
-			gen_fsm:event(Pid, {up, FromAddr, Msg});
+			gen_fsm:send_event(Pid, {up, FromAddr, Msg});
 		undefined ->
 			io:format("Got msg to unknown connection id: ~p\n", [Msg#msg.connection_id])
 	end,
