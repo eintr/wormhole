@@ -70,7 +70,7 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
 	[{_Addr, Socket}=H|T] = DownIndex,
-	io:format("~p: gen_udp:send(~p, ~p, ~p, ~p) ...\n", [?MODULE, Socket, DAddr, DPort, FrameBin]),
+	io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, FrameBin]),
 	ok = gen_udp:send(Socket, DAddr, DPort, FrameBin),
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->

@@ -40,7 +40,7 @@ init(State) ->
 	Password = binary:list_to_bin(_P),
 	{_, LocalNetPrefix} = lists:keyfind(localnet_prefix, 1, Config),
 	{_, SAddr} = lists:keyfind(server_addr, 1, Config),
-	ServerAddr = inet:parse_ipv4_address(SAddr),
+	{ok, ServerAddr} = inet:parse_ipv4_address(SAddr),
 	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
 	ChapMsg = #msg{	connection_id=?CONNID_CTRL,
 					code=?CODE_CHAP,
