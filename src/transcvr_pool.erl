@@ -27,8 +27,9 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
-	{ok, Config} = file:script(application:get_env(configfile)),
-	LocalAddrs = case lists:keyfind(local_addrs, Config) of
+	{ok, Filename} = application:get_env(configfile),
+	{ok, Config} = file:script(Filename),
+	LocalAddrs = case lists:keyfind(local_addrs, 1, Config) of
 					 {local_addrs, AddrList} ->
 						 lists:filtermap(fun (Str)->
 												 case inet:parse_ipv4_address(Str) of 
@@ -39,8 +40,9 @@ init([]) ->
 					 fasle ->
 						 [{0,0,0,0}]
 				 end,
-	{local_ports, LocalPorts} = lists:keyfind(local_ports, Config),
+	{local_ports, LocalPorts} = lists:keyfind(local_ports, 1, Config),
 	L = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts],
+	io:format("~p: Try to open socket on ~p.\n", [?MODULE, L]),
 	Sockets = lists:map(fun ({Addr, Port})->
 							case gen_udp:open(Port, [binary, {ip, Addr}]) of
 								{ok, Socket} ->

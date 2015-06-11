@@ -30,11 +30,12 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
-	{ok, Config} = file:script(application:get_env(configfile)),
-	{ok, Pid} = case lists:keyfind(mode, Config) of
-					server ->
+	{ok, Filename} = application:get_env(configfile),
+	{ok, Config} = file:script(Filename),
+	{ok, Pid} = case lists:keyfind(mode, 1, Config) of
+					{ mode, server } ->
 						connfsm_control_server:start_link();
-					client ->
+					{ mode, client } ->
 						connfsm_control_client:start_link();
 					_M ->
 						io:format("~p: Running mode ~p is unknown.\n", [?MODULE, _M]),

@@ -8,5 +8,5 @@
                   stdlib
                  ]},
   {mod, { wormhole_app, []}},
-  {env, [configfile, "/etc/wormhole.conf"]}
+  {env, [{configfile, "/etc/wormhole.conf"}]}
  ]}.
