@@ -31,22 +31,23 @@ init([]) ->
 	LocalAddrs = case lists:keyfind(local_addrs, Config) of
 					 {local_addrs, AddrList} ->
 						 lists:filtermap(fun (Str)->
-										   case inet:parse_ipv4_address(Str) of 
-											   {ok, Addr} -> {true, Addr};
-											   {error, _} -> false
-										   end end, AddrList);
+												 case inet:parse_ipv4_address(Str) of 
+													 {ok, Addr} -> {true, Addr};
+													 {error, _} -> false
+												 end
+										 end, AddrList);
 					 fasle ->
 						 [{0,0,0,0}]
 				 end,
 	{local_ports, LocalPorts} = lists:keyfind(local_ports, Config),
-	AddrList = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts];
+	L = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts],
 	Sockets = lists:map(fun ({Addr, Port})->
 							case gen_udp:open(Port, [binary, {ip, Addr}]) of
 								{ok, Socket} ->
 									{ok, {Addr, Port}, Socket};
 								_ -> {error, {Addr, Port}, "Bind error."}
 							end
-					end, AddrList),
+					end, L),
 	% Report error.
 	lists:foreach(fun ({error, Addr, Reason})->
 						  io:format("Failed to open socket on ~p: ~p\n", [Addr, Reason]);

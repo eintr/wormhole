@@ -31,7 +31,7 @@ init([]) ->
 	io:format("~p is initting, with ~p\n", [?MODULE, Filename]),
     {ok, {load_accounts(Filename)}}.
 
-handle_call({reload_conf, Filename}, _From, {AccountList}) ->
+handle_call({reload_conf, Filename}, _From, _) ->
 	{reply, ok, {load_accounts(Filename)}};
 handle_call({auth, {Username, _Salt, _MD5}}, _From, {AccountList}) ->
 	case lists:keyfind(Username, 1, AccountList) of

@@ -41,7 +41,7 @@ init([]) ->
 						crash
 				end,
 	put(?CONNID_CTRL, {Pid}),
-	{ok, Flags}.
+	{ok, {}}.
 
 handle_call({create_conn, ConnCfg}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(ConnCfg),
@@ -77,8 +77,4 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-load_accounts(Filename) ->
-	{ok, Config} = file:script(Filename),
-	{accounts, AccountList} = lists:keyfind(accounts, 1, Config),
-	AccountList.
 

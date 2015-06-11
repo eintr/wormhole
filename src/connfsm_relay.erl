@@ -5,13 +5,6 @@
 -include("msg.hrl").
 -include("protocol.hrl").
 
--record(conn_state, {
-		  conn_id,
-		  fec_pid,
-		  tun_pid,
-		  send_socket
-		 }).
-
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -81,8 +74,8 @@ handle_info({tuntap, TunPID, TunPktBin}, relay, {ConnID, TunPID}=State) ->
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
-terminate(_Reason, _StateName, State) ->
-	ok = tuncer:close(State#conn_state.tun_pid),
+terminate(_Reason, _StateName, {_ConnID, TunPID}) ->
+	ok = tuncer:close(TunPID),
 	ok.
 
 code_change(_OldVsn, StateName, State, _Extra) ->

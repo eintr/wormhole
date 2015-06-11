@@ -35,7 +35,7 @@ init([Addr]) ->
 	put(interleave, 1),
 	put(timeout, 10000),
 	put(current_gid, 1),
-    {ok, loop, {}}.
+    {ok, loop, []}.
 
 loop({down, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
 	loop({down_push, ToAddr, MsgBin}, State);
@@ -47,7 +47,7 @@ loop({down_push, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
 	{next_state, loop, State};
 loop({up, FromAddr, FecFrameBin}, State) ->	%% TODO: Do the read FEC magic.
 	FecFrame = fec_frame:decode(FecFrameBin),
-	gen_server:cast(conn_pool, {up, [{FromAddr, FecFrame#fec_frame.payload}] }),
+	gen_server:cast(conn_pool, {up, FromAddr, FecFrame#fec_frame.payload }),
 	{next_state, loop, State};
 loop(_Event, State) ->
     {next_state, loop, State}.
