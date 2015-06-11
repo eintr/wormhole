@@ -5,11 +5,10 @@
 -include("protocol.hrl").
 
 connid_combine({S, C}) ->
-	<<(binary:encode_unsigned(S)):32/binary, (binary:encode_unsigned(C)):32/binary>>.
+	S*16#100000000 + C.
 
 connid_split(ID) ->
-	<<S:32/unsigned-big-integer, C:32/unsigned-big-integer>> = ID,
-	{S, C}.
+	{ID div 16#100000000, ID rem 16#100000000}.
 
 encode(Msg) ->
 	Body = Msg#msg.body,
@@ -71,4 +70,8 @@ decode(MsgBin) ->
 			io:format("Unknown Msg code ~p\n", [_Code]),
 			{error, "Unknown code."}
 	end.
+
+-ifdef(TEST).
+-include("msg_test.hrl").
+-endif.
 
