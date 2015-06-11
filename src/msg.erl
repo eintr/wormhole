@@ -50,9 +50,9 @@ decode(MsgBin) ->
 			Body = #msg_body_data{data=BodyBin},
 			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
 		?CODE_CHAP ->
-			<<ConnIDClient:32/unsigned-big-integer, Salt:64/binary, Prefix:32/binary, PrefixLen:8/big-integer, MD5:128/binary, Username/binary>> = BodyBin,
+			<<ConnIDClient:32/unsigned-big-integer, Salt:8/binary, Prefix:4/binary, PrefixLen:8/big-integer, MD5:16/binary, Username/binary>> = BodyBin,
 			{A,B,C,D}=ipaddr:u32bin_to_addr(Prefix),
-			PrefixStr = io_lib:format("~p.~p.~p.~p/~p", [A,B,C,D,PrefixLen]),
+			PrefixStr = lists:flatten(io_lib:format("~p.~p.~p.~p/~p", [A,B,C,D,PrefixLen])),
 			Body = #msg_body_chap{ conn_id_client=ConnIDClient, salt=Salt, prefix=PrefixStr, md5=MD5, username=Username },
 			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
 		?CODE_CHAP_CONNECT ->
