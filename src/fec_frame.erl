@@ -16,7 +16,7 @@ info_encode(I) ->
 		  (I#fec_info.fec_gsize):8/big-integer >>.
 
 decode(Packet) ->
-	<<  Fec:40/big-integer, PayLoad/binary >> = Packet,
+	<<  Fec:5/binary, PayLoad/binary >> = Packet,
 	{ok, #fec_frame{
 			fec_info=info_decode(Fec),
 			payload=PayLoad
@@ -28,4 +28,7 @@ encode(F) ->
 		  >>,
 	{ok, Bin}.
 
+-ifdef(TEST).
+-include("fec_frame_test.hrl").
+-endif.
 
