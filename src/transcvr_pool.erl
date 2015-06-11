@@ -77,7 +77,7 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({udp, _Socket, SAddr, SPort, PacketBin}, State) ->
-	fec_server ! {up, {SAddr, SPort}, PacketBin},
+	fec_pool ! {up, {SAddr, SPort}, PacketBin},
 	{noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
