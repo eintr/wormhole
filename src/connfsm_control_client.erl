@@ -31,18 +31,26 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init(State) ->
+	{ok, Filename} = application:get_env(configfile),
+	{ok, Config} = file:script(Filename),
 	Salt = <<"TestSalt">>,
-	Username = <<"Username">>,
-	Password = <<"password">>,
-	ServerAddr = {107,161,16,30},
-	ServerPort = 60000,
+	{_, _U} = lists:keyfind(username, 1, Config),
+	Username = binary:list_to_bin(_U),
+	{_, _P} = lists:keyfind(password, 1, Config),
+	Password = binary:list_to_bin(_P),
+	{_, LocalNetPrefix} = lists:keyfind(localnet_prefix, 1, Config),
+	{_, SAddr} = lists:keyfind(server_addr, 1, Config),
+	ServerAddr = inet:parse_ipv4_address(SAddr),
+	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
 	ChapMsg = #msg{	connection_id=?CONNID_CTRL,
 					code=?CODE_CHAP,
 					body= #msg_body_chap{	salt=Salt,
-											prefix="10.0.0.0/8",
+											conn_id_client=10001,
+											prefix=LocalNetPrefix,
 											md5=crypto:hash(md5, <<Salt/binary, Password/binary>>),
 											username=Username }},
-	gen_server:cast(fec_pool, {down_push, [{ServerAddr, ServerPort}], msg:encode(ChapMsg)}),
+	{ok, ChapMsgBin} = msg:encode(ChapMsg),
+	gen_server:cast(fec_pool, {down_push, [{ServerAddr, ServerPort}], ChapMsgBin}),
 	{ok, wait_chap_result, {{ServerAddr, ServerPort}, State}, 3000}.
 
 wait_chap_result(timeout, {_Server, State}) ->

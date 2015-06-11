@@ -10,10 +10,10 @@ info_decode(FecBin) ->
 		Fecgsize:8/big-integer >> = FecBin,
 	#fec_info{fecg_id=Fecgid, fec_seq=Fecseq, fec_gsize=Fecgsize}.
 
-info_encode(F) ->
-	<<    (F#fec_frame.fec_info#fec_info.fecg_id):24/big-integer,
-		  (F#fec_frame.fec_info#fec_info.fec_seq):8/big-integer,
-		  (F#fec_frame.fec_info#fec_info.fec_gsize):8/big-integer >>.
+info_encode(I) ->
+	<<    (I#fec_info.fecg_id):24/big-integer,
+		  (I#fec_info.fec_seq):8/big-integer,
+		  (I#fec_info.fec_gsize):8/big-integer >>.
 
 decode(Packet) ->
 	<<  Fec:40/big-integer, PayLoad/binary >> = Packet,
@@ -23,7 +23,7 @@ decode(Packet) ->
 		   }}.
 
 encode(F) ->
-	Bin = <<    (info_encode(F#fec_frame.fec_info)):40/binary,
+	Bin = <<    (info_encode(F#fec_frame.fec_info))/binary,
 				(F#fec_frame.payload)/binary
 		  >>,
 	{ok, Bin}.

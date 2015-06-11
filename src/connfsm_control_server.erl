@@ -31,6 +31,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init(State) ->
+	io:format("~p: inited.\n", [?MODULE]),
 	{ok, control, State}.
 
 control({up, _FromAddr, Msg}, State) ->

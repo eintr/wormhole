@@ -42,6 +42,7 @@ init([]) ->
 						crash
 				end,
 	put(?CONNID_CTRL, {Pid}),
+	io:format("~p: inited.\n", [?MODULE]),
 	{ok, {}}.
 
 handle_call({create_conn, ConnCfg}, _From, State) ->

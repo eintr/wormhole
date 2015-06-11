@@ -61,6 +61,10 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 load_accounts(Filename) ->
 	{ok, Config} = file:script(Filename),
-	{accounts, AccountList} = lists:keyfind(accounts, 1, Config),
-	AccountList.
+	case lists:keyfind(accounts, 1, Config) of
+		{accounts, AccountList} -> AccountList;
+		false ->
+			io:format("~p: AccountList not found.\n", [?MODULE]),
+			[]
+	end.
 

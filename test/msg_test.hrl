@@ -14,6 +14,25 @@ data_encode_test() ->
 							code=?CODE_DATA,
 							body=#msg_body_data{data = <<16#1, 16#2, 16#3, 16#4, 16#5, 16#6, 16#7>>}}}).
 
+chap_encode_test() ->
+	M=#msg{ connection_id=?CONNID_CTRL,
+		  code=?CODE_CHAP,
+		  body= #msg_body_chap{   salt = <<"SALTSALT">>,
+								  conn_id_client = 1,
+								  prefix = "10.0.0.0/8",
+								  md5 = binary:copy(<<"D">>, 16),
+								  username = <<"user1">> }},
+	{ok, B} = msg:encode(M),
+	TARGET = <<	?CONNID_CTRL:64/unsigned-big-integer,
+				?CODE_CHAP:8/unsigned-big-integer,
+				1:32/unsigned-big-integer,
+				<<"SALTSALT">>/binary,
+				<<10, 0, 0, 0, 8>>/binary,
+				(binary:copy(<<"D">>, 16))/binary,
+				<<"user1">>/binary
+			 >>,
+	?assert( B =:= TARGET).
+
 connid_basic_test() ->
 	?assert(connid_split(16#100000002) =:= {1, 2}),
 	?assert(msg:connid_combine({1, 5}) =:= 16#100000005),

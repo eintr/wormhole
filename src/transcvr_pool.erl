@@ -37,35 +37,41 @@ init([]) ->
 													 {error, _} -> false
 												 end
 										 end, AddrList);
-					 fasle ->
+					 false ->
 						 [{0,0,0,0}]
 				 end,
-	{local_ports, LocalPorts} = lists:keyfind(local_ports, 1, Config),
+	LocalPorts = case lists:keyfind(local_ports, 1, Config) of
+					 {local_ports, ListInConf} -> ListInConf;
+					 false -> [0]
+				 end,
 	L = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts],
 	io:format("~p: Try to open socket on ~p.\n", [?MODULE, L]),
 	Sockets = lists:map(fun ({Addr, Port})->
-							case gen_udp:open(Port, [binary, {ip, Addr}]) of
+							case gen_udp:open(Port, [binary, {ip, Addr}, {active, true}]) of
 								{ok, Socket} ->
 									{ok, {Addr, Port}, Socket};
 								_ -> {error, {Addr, Port}, "Bind error."}
 							end
 					end, L),
+	io:format("~p: Sockets is ~p\n", [?MODULE, Sockets]),
 	% Report error.
 	lists:foreach(fun ({error, Addr, Reason})->
 						  io:format("Failed to open socket on ~p: ~p\n", [Addr, Reason]);
 					  (_) -> nothing_todo
 				  end, Sockets),
-	DownIndex = lists:filtermap(fun ({ok, A, P})	-> {true, {A, P}};
+	DownIndex = lists:filtermap(fun ({ok, A, S})	-> {true, {A, S}};
 					 (_)	-> false
 				 end, Sockets),
+	io:format("~p: DownIndex is ~p\n", [?MODULE, DownIndex]),
     {ok, {DownIndex}}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 handle_cast({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
-	[H|T] = DownIndex,
-	ok = gen_udp:send(H, DAddr, DPort, FrameBin),
+	[{_Addr, Socket}=H|T] = DownIndex,
+	io:format("~p: gen_udp:send(~p, ~p, ~p, ~p) ...\n", [?MODULE, Socket, DAddr, DPort, FrameBin]),
+	ok = gen_udp:send(Socket, DAddr, DPort, FrameBin),
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.

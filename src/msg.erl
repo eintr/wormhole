@@ -21,13 +21,14 @@ encode(Msg) ->
 		?CODE_CHAP ->
 			{ok, {Prefix, Len}} = ipaddr:prefix_parse(Body#msg_body_chap.prefix),
 			BodyBin = <<	(Body#msg_body_chap.conn_id_client):32/unsigned-big-integer,
-							(Body#msg_body_chap.salt):64/binary,
-							Prefix:32/big-integer,
-							Len:8/big-integer,
-							(Body#msg_body_chap.md5):128/binary,
-							(Body#msg_body_chap.username)/binary >>,
-			{ok, <<	(Msg#msg.connection_id):64/big-integer,
-					(Msg#msg.code):8/big-integer,
+							(Body#msg_body_chap.salt)/binary,
+							(ipaddr:addr_to_u32bin(Prefix))/binary,
+							Len:8/unsigned-big-integer,
+							(Body#msg_body_chap.md5)/binary,
+							(Body#msg_body_chap.username)/binary
+					  >>,
+			{ok, <<	(Msg#msg.connection_id):64/unsigned-big-integer,
+					(Msg#msg.code):8/unsigned-big-integer,
 					BodyBin/binary >>};
 		?CODE_CHAP_CONNECT ->
 			BodyBin = <<	(Body#msg_body_connect.conn_id_client):32/unsigned-big-integer,

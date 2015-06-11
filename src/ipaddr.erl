@@ -1,10 +1,16 @@
 -module(ipaddr).
--export([u32bin_to_addr/1]).
+-export([u32bin_to_addr/1, addr_to_u32bin/1]).
 -export([match/2, prefix_parse/1]).
 
 u32bin_to_addr(U32Bin) ->
 	<<A:8, B:8, C:8, D:8>> = U32Bin,
 	{A,B,C,D}.
+
+addr_to_u32bin({A,B,C,D}) ->
+	<<	A:8/unsigned-big-integer,
+		B:8/unsigned-big-integer,
+		C:8/unsigned-big-integer,
+		D:8/unsigned-big-integer>>.
 
 prefix_parse(Str) when is_list(Str) ->
 	Tokens = string:tokens(Str, "/"),

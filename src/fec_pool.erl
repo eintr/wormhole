@@ -29,6 +29,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
+	io:format("~p: inited.\n", [?MODULE]),
     {ok, {}}.
 
 handle_call(_Request, _From, State) ->
