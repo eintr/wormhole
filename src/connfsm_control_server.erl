@@ -33,7 +33,7 @@ start_link() ->
 init(State) ->
 	{ok, control, State}.
 
-control({up, FromAddr, Msg}, State) ->
+control({up, _FromAddr, Msg}, State) ->
 	case Msg#msg.code of
 		?CODE_CHAP ->
 			ok;
@@ -47,9 +47,6 @@ control(_Event, State) ->
 	io:format("conn/control: Unknown event: ~p\n", [_Event]),
 	{next_state, control, State}.
 
-control({admin, new_conn, {ConnID, SharedKey, Uname, Passwd, Addr, Port}=Arg}, _From, State) ->
-	gen_server:call(State#conn_state.fec_pid, {encode, frame:encode(#frame{connection_id=?CONNID_CTRL, payload=msg:encode(chap, {})}), [push]}),
-	{next_state, control_wait_chap_result, {State, Arg}};
 control(_Event, _From, State) ->
 	io:format("Unknown event: ~p from ~p\n", [_Event, _From]),
     {reply, unknown_event, control, State}.
@@ -65,8 +62,7 @@ handle_info({}, StateName, State) ->
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
-terminate(_Reason, _StateName, State) ->
-	ok = tuncer:close(State#conn_state.tun_pid),
+terminate(_Reason, _StateName, _State) ->
 	ok.
 
 code_change(_OldVsn, StateName, State, _Extra) ->

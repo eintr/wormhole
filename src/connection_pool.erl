@@ -35,8 +35,8 @@ init([Flags]) ->
     {ok, Flags}.
 
 handle_call({create_conn, ConnCfg}, _From, State) ->
-	{ok, Pid} = connfsm_relay:start(Connid),
-	put(Connid, {Pid}),
+	{ok, Pid} = connfsm_relay:start(ConnCfg),
+	put(msg:connid_combine(ConnCfg#msg_body_connect.conn_id_server, ConnCfg#msg_body_connect.conn_id_client), {Pid}),
 	{reply, ok, State};
 handle_call(_Request, _From, State) ->
 	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),
@@ -54,7 +54,7 @@ handle_cast({up, Msgs}, State) ->
 				  end, Msgs),
 	{noreply, State};
 handle_cast(_Msg, State) ->
-	io:format("~p: Don't know how to deal with cast ~p\n", [?SERVER, _Info]),
+	io:format("~p: Don't know how to deal with cast ~p\n", [?SERVER, _Msg]),
     {noreply, State}.
 
 handle_info(_Info, State) ->

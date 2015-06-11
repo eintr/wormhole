@@ -1,8 +1,15 @@
 -module(msg).
--export([encode/1, decode/1, connid_comb/2, connid_split/1]).
+-export([encode/1, decode/1, connid_combine/1, connid_split/1]).
 
 -include("msg.hrl").
 -include("protocol.hrl").
+
+connid_combine({S, C}) ->
+	<<(binary:encode_unsigned(S)):32/binary, (binary:encode_unsigned(C)):32/binary>>.
+
+connid_split(ID) ->
+	<<S:32/unsigned-big-integer, C:32/unsigned-big-integer>> = ID,
+	{S, C}.
 
 encode(Msg) ->
 	Body = Msg#msg.body,
@@ -54,8 +61,6 @@ decode(MsgBin) ->
 				TunAddrServer:32/binary,
 				TunAddrClient:32/binary,
 				RoutePrefixes/binary	>> = BodyBin,
-			{A,B,C,D}=ipaddr:u32bin_to_addr(Prefix),
-			PrefixStr = io_lib:format("~p.~p.~p.~p/~p", [A,B,C,D,PrefixLen]),
 			Body = #msg_body_connect{	conn_id_client=ConnIDClient,
 										conn_id_server=ConnIDServer,
 										server_tun_addr=ipaddr:u32bin_to_addr(TunAddrServer),
