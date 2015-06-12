@@ -1,18 +1,20 @@
 -include_lib("eunit/include/eunit.hrl").
  
 data_decode_test() ->
-	?assert(msg:encode(#msg{connection_id=16#100000002,
-							code=?CODE_DATA,
-							body=#msg_body_data{data = <<16#1, 16#2, 16#3, 16#4, 16#5, 16#6, 16#7>>}})
-			=:=
-			{ok, <<16#00, 16#00, 16#00, 16#01, 16#00, 16#00, 16#00, 16#02, 16#00, 16#1, 16#2, 16#3, 16#4, 16#5, 16#6, 16#7>>}).
+	M = #msg{connection_id=23761278642,
+			 code=?CODE_DATA,
+			 body=#msg_body_data{data = <<"This is a test content.">>}},
+	B = <<23761278642:64/unsigned-big-integer, ?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
+	{ok, R} = msg:encode(M),
+	?assert( R =:= B ).
 
 data_encode_test() ->
-	?assert(msg:decode(<<16#00, 16#00, 16#00, 16#01, 16#00, 16#00, 16#00, 16#02, 16#00, 16#1, 16#2, 16#3, 16#4, 16#5, 16#6, 16#7>>)
-			=:=
-			{ok, #msg{connection_id=16#100000002,
-							code=?CODE_DATA,
-							body=#msg_body_data{data = <<16#1, 16#2, 16#3, 16#4, 16#5, 16#6, 16#7>>}}}).
+	M = #msg{connection_id=23761278642,
+			 code=?CODE_DATA,
+			 body=#msg_body_data{data = <<"This is a test content.">>}},
+	B = <<23761278642:64/unsigned-big-integer, ?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
+	{ok, R} = msg:decode(B),
+	?assert( R =:= M ).
 
 chap_encode_test() ->
 	M = #msg{ connection_id=?CONNID_CTRL,
@@ -52,10 +54,46 @@ chap_decode_test() ->
 	{ok, R} = msg:decode(B),
 	?assert( M =:= R).
 
+connect_encode_test() ->
+	M = #msg{	connection_id=?CONNID_CTRL,
+				code=?CODE_CHAP_CONNECT,
+				body = #msg_body_connect{	conn_id_client = 12345,
+											conn_id_server = 23456,
+											server_tun_addr= {1,2,3,4},
+											client_tun_addr = {2,3,4,5},
+											route_prefixes=[]}},
+	B = <<	?CONNID_CTRL:64/unsigned-big-integer,
+			?CODE_CHAP_CONNECT:8/unsigned-big-integer,
+			12345:32/unsigned-big-integer,
+			23456:32/unsigned-big-integer,
+			<<1,2,3,4>>/binary,
+			<<2,3,4,5>>/binary
+		>>,
+	{ok, R} = msg:encode(M),
+	?assert( B =:= R ).
+
+connect_decode_test() ->
+	M = #msg{	connection_id=?CONNID_CTRL,
+				code=?CODE_CHAP_CONNECT,
+				body = #msg_body_connect{	conn_id_client = 12345,
+											conn_id_server = 23456,
+											server_tun_addr= {1,2,3,4},
+											client_tun_addr = {2,3,4,5},
+											route_prefixes=[]}},
+	B = <<	?CONNID_CTRL:64/unsigned-big-integer,
+			?CODE_CHAP_CONNECT:8/unsigned-big-integer,
+			12345:32/unsigned-big-integer,
+			23456:32/unsigned-big-integer,
+			<<1,2,3,4>>/binary,
+			<<2,3,4,5>>/binary
+		>>,
+	{ok, R} = msg:decode(B),
+	?assert( M =:= R ).
+
 connid_basic_test() ->
 	?assert(connid_split(16#100000002) =:= {1, 2}),
-	?assert(msg:connid_combine({1, 5}) =:= 16#100000005),
-	?assert(msg:connid_split(connid_combine({1234,5678})) =:= {1234,5678}).
+	?assert(msg:connid_combine(1, 5) =:= 16#100000005),
+	?assert(msg:connid_split(msg:connid_combine(1234,5678)) =:= {1234,5678}).
  
 %simple_test() ->
 %	    ok = application:start(wormhole),

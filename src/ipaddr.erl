@@ -1,5 +1,5 @@
 -module(ipaddr).
--export([u32bin_to_addr/1, addr_to_u32bin/1, addrlist_to_bin/1]).
+-export([u32bin_to_addr/1, addr_to_u32bin/1, addrlist_to_bin/1, bin_to_addrlist/1]).
 -export([match/2, prefix_parse/1]).
 
 u32bin_to_addr(U32Bin) ->
@@ -14,11 +14,21 @@ addr_to_u32bin({A,B,C,D}) ->
 
 addrlist_to_bin(L) ->
 	addrlist_to_bin(L, <<>>).
-
 addrlist_to_bin([], Result) ->
 	Result;
 addrlist_to_bin([H|T], Result) ->
 	addrlist_to_bin(T, <<Result/binary, (addr_to_u32bin(H))/binary>>).
+
+bin_to_addrlist(B) ->
+	bin_to_addrlist(B, []).
+bin_to_addrlist(<<>>, Result) ->
+	Result;
+bin_to_addrlist(<<	A:8/unsigned-integer,
+					B:8/unsigned-integer,
+					C:8/unsigned-integer,
+					D:8/unsigned-integer,
+					Rest/binary>>, Result) ->
+	bin_to_addrlist(Rest, Result++[{A,B,C,D}]).
 
 prefix_parse(Str) when is_list(Str) ->
 	Tokens = string:tokens(Str, "/"),

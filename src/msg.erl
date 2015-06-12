@@ -32,10 +32,12 @@ encode(Msg) ->
 					BodyBin/binary >>};
 		?CODE_CHAP_CONNECT ->
 			RoutrPrefixBin = ipaddr:addrlist_to_bin(Body#msg_body_connect.route_prefixes),
+			TunAddrS = Body#msg_body_connect.server_tun_addr,
+			TunAddrC = Body#msg_body_connect.client_tun_addr,
 			BodyBin = <<	(Body#msg_body_connect.conn_id_client):32/unsigned-big-integer,
 							(Body#msg_body_connect.conn_id_server):32/unsigned-big-integer,
-							(Body#msg_body_connect.server_tun_addr):32/unsigned-big-integer,
-							(Body#msg_body_connect.client_tun_addr):32/unsigned-big-integer,
+							(ipaddr:addr_to_u32bin(TunAddrS))/binary,
+							(ipaddr:addr_to_u32bin(TunAddrC))/binary,
 							RoutrPrefixBin/binary >>,
 			{ok, <<	(Msg#msg.connection_id):64/big-integer,
 					(Msg#msg.code):8/big-integer,
@@ -59,14 +61,14 @@ decode(MsgBin) ->
 		?CODE_CHAP_CONNECT ->
 			<<	ConnIDClient:32/unsigned-big-integer,
 				ConnIDServer:32/unsigned-big-integer,
-				TunAddrServer:32/binary,
-				TunAddrClient:32/binary,
+				TunAddrServer:4/binary,
+				TunAddrClient:4/binary,
 				RoutePrefixes/binary	>> = BodyBin,
 			Body = #msg_body_connect{	conn_id_client=ConnIDClient,
 										conn_id_server=ConnIDServer,
 										server_tun_addr=ipaddr:u32bin_to_addr(TunAddrServer),
 										client_tun_addr=ipaddr:u32bin_to_addr(TunAddrClient),
-										route_prefixes=RoutePrefixes},
+										route_prefixes=ipaddr:bin_to_addrlist(RoutePrefixes)},
 			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
 		_Code ->
 			io:format("Unknown Msg code ~p\n", [_Code]),
