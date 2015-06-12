@@ -26,7 +26,7 @@
 start(ConnID) ->
     gen_fsm:start({local, ?SERVER}, ?MODULE, [ConnID], []).
 start_link(ConnID) ->
-    gen_fsm:start({local, ?SERVER}, ?MODULE, [ConnID], []).
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [ConnID], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
