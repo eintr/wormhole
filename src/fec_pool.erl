@@ -57,11 +57,11 @@ handle_cast({down_push, ToAddrList, FramePayload}, State) ->
 	lists:foreach(fun ({Addr, _Port}=ToAddr)->
 			case get(Addr) of
 				{Pid} ->
-					gen_fsm:send_event(Pid, {down, ToAddr, FramePayload});
+					gen_fsm:send_event(Pid, {down_push, ToAddr, FramePayload});
 				undefined ->
 					{ok, Pid} = fec_node:start(Addr),
 					put(Addr, {Pid}),
-					gen_fsm:send_event(Pid, {down, ToAddr, FramePayload})
+					gen_fsm:send_event(Pid, {down_push, ToAddr, FramePayload})
 			end
 		end, ToAddrList),
 		{noreply, State};
