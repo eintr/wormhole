@@ -23,19 +23,27 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start(ConnID) ->
-    gen_fsm:start(?MODULE, [ConnID], []).
-start_link(ConnID) ->
-    gen_fsm:start_link(?MODULE, [ConnID], []).
+start(ConnCfg) ->
+    gen_fsm:start(?MODULE, [ConnCfg], []).
+start_link(ConnCfg) ->
+    gen_fsm:start_link(?MODULE, [ConnCfg], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([ConnID]) ->
-	{ok, TunPID} = tuncer:create("", [tun, {active, true}]),
+init([{ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList}]) ->
+	{ok, TunPID} = tuncer:create([], [tun, {active, true}]),
 	put(tun_ifname, binary:bin_to_list(tuncer:devname(TunPID))),
-	put(peeraddr, []),
+	{A1, A2, A3, A4} = TunLocalIP,
+	{B1, B2, B3, B4} = TunPeerIP,
+	{0, _} = util:system(io_lib:format("ip address add dev ~s ~p.~p.~p.~p peer ~p.~p.~p.~p", [get(tun_ifname), A1, A2, A3, A4, B1, B2, B3, B4])),
+	{0, _} = util:system(io_lib:format("ip link set dev ~s up", [get(tun_ifname)])),
+	lists:map(fun ({{A,B,C,D}, L}) ->
+				  util:system(io_lib:format("ip route add ~p.~p.~p.~p/~p dev ~s", [A,B,C,D,L, get(tun_ifname)]))
+			  end, ExtraRouteList),
+	io:format("~p: ~s is configured an activated.\n", [?MODULE, get(tun_ifname)]),
+	put(peeraddr, [PeerAddr]),
     {ok, relay, {ConnID, TunPID}}.
 
 relay({up, FromAddr, Msg}, {_ConnID, TunPID}=State) ->
@@ -69,7 +77,8 @@ handle_sync_event(_Event, _From, StateName, State) ->
 
 handle_info({tuntap, TunPID, TunPktBin}, relay, {ConnID, TunPID}=State) ->
 	Msg = #msg{connection_id = ConnID, code=?CODE_DATA, body=#msg_body_data{data=TunPktBin}},
-	gen_server:cast(fec_pool, {down, get(peeraddr), Msg}),
+	{ok, MsgBin} = msg:encode(Msg),
+	gen_server:cast(fec_pool, {down, get(peeraddr), MsgBin}),
     {next_state, relay, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
@@ -84,4 +93,3 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
