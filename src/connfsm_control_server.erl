@@ -49,7 +49,7 @@ control({up, {FromAddr, FromPort}, Msg}, State) ->
 							client_tun_addr={172,200,0,1},
 							route_prefixes=[]}},
 			{ok, MsgConnectBin} = msg:encode(MsgConnect),
-			gen_server:cast(fec_pool, {down_push, {FromAddr, FromPort}, MsgConnectBin}),
+			gen_server:cast(fec_pool, {down_push, [{FromAddr, FromPort}], MsgConnectBin}),
 			put(server_conn_id, get(server_conn_id)+1),
 			ok;
 		?CODE_ECHO ->
