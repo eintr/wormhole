@@ -4,7 +4,12 @@
 system(Str) ->
 	PidStr = lists:flatten(io_lib:format("~p", [self()])),
 	PidSalt = string:strip(string:strip(PidStr, left, $<), right, $>),
-	TmpFname = "/tmp/wormhole."++ os:getpid() ++ "." ++ PidSalt ++ lists:flatten(io_lib:format("~p", [os:timestamp()])),
+	TimeSalt = string:strip(
+				 string:strip(
+				   lists:flatten(io_lib:format("~p", [os:timestamp()])),
+				   left, ${),
+				 right, $}),
+	TmpFname = "/tmp/wormhole."++ os:getpid() ++ "." ++ PidSalt ++ TimeSalt,
 	CMD = lists:flatten(Str) ++ " > " ++ TmpFname ++ " ; echo $?",
 	Codeout = os:cmd(CMD),
 	Code = list_to_integer(string:strip(Codeout, right, 10)),
