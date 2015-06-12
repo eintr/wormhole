@@ -71,7 +71,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
 	[{_Addr, Socket}=H|T] = DownIndex,
 	%io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, FrameBin]),
-	ok = gen_udp:send(Socket, DAddr, DPort, FrameBin),
+	gen_udp:send(Socket, DAddr, DPort, FrameBin),	% TODO: traffic detection here!
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
