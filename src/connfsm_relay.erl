@@ -39,6 +39,7 @@ init([{ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList}]) ->
 	{B1, B2, B3, B4} = TunPeerIP,
 	{0, _} = util:system(io_lib:format("ip address add dev ~s ~p.~p.~p.~p peer ~p.~p.~p.~p", [get(tun_ifname), A1, A2, A3, A4, B1, B2, B3, B4])),
 	{0, _} = util:system(io_lib:format("ip link set dev ~s up", [get(tun_ifname)])),
+	{0, _} = util:system(io_lib:format("ip link set dev ~s mtu 1450", [get(tun_ifname)])),
 	lists:map(fun ({{A,B,C,D}, L}) ->
 				  util:system(io_lib:format("ip route add ~p.~p.~p.~p/~p dev ~s", [A,B,C,D,L, get(tun_ifname)]))
 			  end, ExtraRouteList),
