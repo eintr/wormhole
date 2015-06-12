@@ -43,7 +43,9 @@ control({up, {FromAddr, FromPort}=RemoteAddr, Msg}, State) ->
 			MsgChap = Msg#msg.body,
 			ConnID = msg:connid_combine(get(server_conn_id), MsgChap#msg_body_chap.conn_id_client),
 			LocalTunIP = {10,255,255,253},
-			PeerTunIP = {172,17,255,1},
+			A3 = get(server_conn_id) rem 256,
+			A4 = (get(server_conn_id) rem 65536) div 256,
+			PeerTunIP = {172,17,A3,A4},
 
 			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalTunIP, PeerTunIP, RemoteAddr, []}}),
 			MsgConnect=#msg{connection_id=?CONNID_CTRL,
