@@ -60,10 +60,11 @@ wait_chap_result({up, {ServerAddr, _}=FromAddr, Msg}, {{ServerAddr, _}, State}) 
 	case Msg#msg.code of
 		?CODE_CHAP_CONNECT ->
 			io:format("~p: CHAP success, create conn.\n", [?MODULE]),
-			Body = Msg#msg.body, %{ConnID, LocalIP, PeerIP, ExtraRouteList}
+			Body = Msg#msg.body,
 			ConnID = msg:connid_combine(Body#msg_body_connect.conn_id_server, Body#msg_body_connect.conn_id_client),
 			LocalIP = Body#msg_body_connect.client_tun_addr,
 			PeerIP = Body#msg_body_connect.server_tun_addr,
+			%{ConnID, LocalTunIP, PeerTunIP, RemoteAddr, ExtraRouteList}
 			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalIP, PeerIP, FromAddr, []}}),
 			{next_state, loop, State};
 		?CODE_CHAP_REJECT ->

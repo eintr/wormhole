@@ -35,18 +35,23 @@ init(State) ->
 	put(server_conn_id, 1),
 	{ok, control, State}.
 
-control({up, {FromAddr, FromPort}, Msg}, State) ->
+control({up, {FromAddr, FromPort}=RemoteAddr, Msg}, State) ->
 	case Msg#msg.code of
 		?CODE_CHAP ->
 			%% TODO: Do the real auth!
+			%{ConnID, LocalTunIP, PeerTunIP, RemoteAddr, ExtraRouteList}
 			MsgChap = Msg#msg.body,
-			ok = gen_server:call(connection_pool, {create_conn, msg:connid_combine(get(server_conn_id), Msg#msg.body#msg_body_chap.conn_id_client)}),
+			ConnID = msg:connid_combine(get(server_conn_id), MsgChap#msg_body_chap.conn_id_client),
+			LocalTunIP = {10,255,255,253},
+			PeerTunIP = {172,17,255,1},
+
+			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalTunIP, PeerTunIP, RemoteAddr, []}}),
 			MsgConnect=#msg{connection_id=?CONNID_CTRL,
 					code=?CODE_CHAP_CONNECT,
 					body=#msg_body_connect{	conn_id_client=MsgChap#msg_body_chap.conn_id_client, 
 							conn_id_server=get(server_conn_id),
-							server_tun_addr={172,199,0,1},
-							client_tun_addr={172,200,0,1},
+							server_tun_addr=LocalTunIP,
+							client_tun_addr=PeerTunIP,
 							route_prefixes=[]}},
 			{ok, MsgConnectBin} = msg:encode(MsgConnect),
 			gen_server:cast(fec_pool, {down_push, [{FromAddr, FromPort}], MsgConnectBin}),
