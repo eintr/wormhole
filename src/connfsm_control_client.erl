@@ -56,16 +56,25 @@ init(State) ->
 wait_chap_result(timeout, {_Server, State}) ->
 	io:format("~p: no chap response within 3 seconds.\n", [?MODULE]),
 	{stop, "Auth timed out", State};
-wait_chap_result({up, {ServerAddr, _}, Msg}, {{ServerAddr, _}, State}) ->
+wait_chap_result({up, {ServerAddr, _}=FromAddr, Msg}, {{ServerAddr, _}, State}) ->
 	case Msg#msg.code of
 		?CODE_CHAP_CONNECT ->
-			ok = gen_server:call(connection_pool, {create_conn, {Msg#msg.body}}),
+			io:format("~p: CHAP success, create conn.\n", [?MODULE]),
+			Body = Msg#msg.body, %{ConnID, LocalIP, PeerIP, ExtraRouteList}
+			ConnID = msg:connid_combine(Body#msg_body_connect.conn_id_server, Body#msg_body_connect.conn_id_client),
+			LocalIP = Body#msg_body_connect.client_tun_addr,
+			PeerIP = Body#msg_body_connect.server_tun_addr,
+			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalIP, PeerIP, FromAddr, []}}),
 			{next_state, loop, State};
 		?CODE_CHAP_REJECT ->
 			{stop, "Auth denied.", State};
 		_ ->
+			io:format("~p: Don't know how to deal msg ~p\n", [?MODULE, Msg]),
 			{next_state, wait_chap_result, State}
-	end.
+	end;
+wait_chap_result(_Msg, State) ->
+	io:format("~p: Don't know how to deal with msg ~p\n", [?MODULE, _Msg]),
+	{next_state, wait_chap_result, State}.
 
 loop({up, _FromAddr, Msg}, State) ->
 	case Msg#msg.code of
