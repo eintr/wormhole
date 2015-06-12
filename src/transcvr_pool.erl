@@ -45,7 +45,7 @@ init([]) ->
 					 false -> [0]
 				 end,
 	L = [{Addr, Port} || Addr<-LocalAddrs, Port<-LocalPorts],
-	io:format("~p: Try to open socket on ~p.\n", [?MODULE, L]),
+	%io:format("~p: Try to open socket on ~p.\n", [?MODULE, L]),
 	Sockets = lists:map(fun ({Addr, Port})->
 							case gen_udp:open(Port, [binary, {ip, Addr}, {active, true}]) of
 								{ok, Socket} ->
@@ -53,7 +53,7 @@ init([]) ->
 								_ -> {error, {Addr, Port}, "Bind error."}
 							end
 					end, L),
-	io:format("~p: Sockets is ~p\n", [?MODULE, Sockets]),
+	%io:format("~p: Sockets is ~p\n", [?MODULE, Sockets]),
 	% Report error.
 	lists:foreach(fun ({error, Addr, Reason})->
 						  io:format("Failed to open socket on ~p: ~p\n", [Addr, Reason]);
@@ -62,7 +62,7 @@ init([]) ->
 	DownIndex = lists:filtermap(fun ({ok, A, S})	-> {true, {A, S}};
 					 (_)	-> false
 				 end, Sockets),
-	io:format("~p: DownIndex is ~p\n", [?MODULE, DownIndex]),
+	%io:format("~p: DownIndex is ~p\n", [?MODULE, DownIndex]),
     {ok, {DownIndex}}.
 
 handle_call(_Request, _From, State) ->
@@ -70,7 +70,7 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({down, {DAddr, DPort}, FrameBin}, {DownIndex}) ->
 	[{_Addr, Socket}=H|T] = DownIndex,
-	io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, FrameBin]),
+	%io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, FrameBin]),
 	ok = gen_udp:send(Socket, DAddr, DPort, FrameBin),
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->

@@ -29,7 +29,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
-	io:format("~p: inited.\n", [?MODULE]),
+	%io:format("~p: inited.\n", [?MODULE]),
     {ok, {}}.
 
 handle_call(_Request, _From, State) ->
@@ -40,7 +40,7 @@ handle_cast({up, FromAddr, FrameBin}, State) ->	%% TODO: Do the real fec magic
 	gen_server:cast(connection_pool, {up, FromAddr, Frame#fec_frame.payload}),
     {noreply, State};
 handle_cast({down, ToAddrList, FramePayload}, State) ->
-	io:format("~p: Handling cast ~p\n", [?MODULE, {down, ToAddrList, FramePayload}]),
+	%io:format("~p: Handling cast ~p\n", [?MODULE, {down, ToAddrList, FramePayload}]),
 	lists:foreach(fun ({Addr, _Port}=ToAddr)->
 			case get(Addr) of
 				{Pid} ->
@@ -53,7 +53,7 @@ handle_cast({down, ToAddrList, FramePayload}, State) ->
 		end, ToAddrList),
 		{noreply, State};
 handle_cast({down_push, ToAddrList, FramePayload}, State) ->
-	io:format("~p: Handling cast ~p\n", [?MODULE, {down_push, ToAddrList, FramePayload}]),
+	%io:format("~p: Handling cast ~p\n", [?MODULE, {down_push, ToAddrList, FramePayload}]),
 	lists:foreach(fun ({Addr, _Port}=ToAddr)->
 			case get(Addr) of
 				{Pid} ->
