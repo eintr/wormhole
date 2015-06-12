@@ -31,11 +31,12 @@ encode(Msg) ->
 					(Msg#msg.code):8/unsigned-big-integer,
 					BodyBin/binary >>};
 		?CODE_CHAP_CONNECT ->
+			RoutrPrefixBin = ipaddr:addrlist_to_bin(Body#msg_body_connect.route_prefixes),
 			BodyBin = <<	(Body#msg_body_connect.conn_id_client):32/unsigned-big-integer,
 							(Body#msg_body_connect.conn_id_server):32/unsigned-big-integer,
 							(Body#msg_body_connect.server_tun_addr):32/unsigned-big-integer,
 							(Body#msg_body_connect.client_tun_addr):32/unsigned-big-integer,
-							(Body#msg_body_connect.route_prefixes)/binary >>,
+							RoutrPrefixBin/binary >>,
 			{ok, <<	(Msg#msg.connection_id):64/big-integer,
 					(Msg#msg.code):8/big-integer,
 					BodyBin/binary >>};
