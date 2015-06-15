@@ -18,6 +18,10 @@
          handle_sync_event/4, handle_info/3, terminate/3,
          code_change/4]).
 
+-ifdef(TEST).
+-export([next_gid/1, delta_gid/2]).
+-endif.
+
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
@@ -78,4 +82,14 @@ next_gid(?GIDMAX) ->
 	0;
 next_gid(N) ->
 	N+1.
+
+delta_gid(A, B) when A >= B ->
+	A-B;
+delta_gid(A, B) ->
+	A+?GIDMAX - B +1.
+
+
+-ifdef(TEST).
+-include("fec_node_test.hrl").
+-endif.
 
