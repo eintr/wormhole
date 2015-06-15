@@ -1,4 +1,4 @@
--module(fec_node).
+-module(fec_encoder).
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
@@ -18,16 +18,12 @@
          handle_sync_event/4, handle_info/3, terminate/3,
          code_change/4]).
 
--ifdef(TEST).
--export([next_gid/1, delta_gid/2]).
--endif.
-
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
 start(Addr) ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [Addr], []).
+    gen_fsm:start({local, ?SERVER}, ?MODULE, [Addr], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
@@ -39,19 +35,26 @@ init([Addr]) ->
 	put(interleave, 1),
 	put(timeout, 10000),
 	put(current_gid, 1),
-    {ok, loop, []}.
+	put(encode_context, []),
+    {ok, loop, {}}.
 
-loop({down, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
-	loop({down_push, ToAddr, MsgBin}, State);
-loop({down_push, ToAddr, MsgBin}, State) ->	%% TODO: Do the read FEC magic.
-	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize)},
-	put(current_gid, next_gid(get(current_gid))),
-	{ok, FecFrameBin} = fec_frame:encode(#fec_frame{fec_info=FecInfo, payload=MsgBin}),
-	gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin}),
-	{next_state, loop, State};
-loop({up, FromAddr, FecFrameBin}, State) ->	%% TODO: Do the read FEC magic.
-	FecFrame = fec_frame:decode(FecFrameBin),
-	gen_server:cast(conn_pool, {up, FromAddr, FecFrame#fec_frame.payload }),
+loop({down, ToAddr, MsgBin}, State) ->
+	case fec:encode(MsgBin) of
+		{ok, FecFrames} ->
+			lists:foreach(fun (F)->
+								  {ok, FecFrameBin} = fec_frame:encode(F),
+								  gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin})
+						  end, FecFrames),
+			{next_state, loop, State};
+		{need_mode} ->
+			{next_state, loop, State}
+	end;
+loop({down_push, ToAddr, MsgBin}, State) ->	
+	{ok, FecFrames} = fec:encode_push(MsgBin),
+	lists:foreach(fun (F)->
+						  {ok, FecFrameBin} = fec_frame:encode(F),
+						  gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin})
+				  end, FecFrames),
 	{next_state, loop, State};
 loop(_Event, State) ->
     {next_state, loop, State}.
@@ -78,18 +81,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-next_gid(?GIDMAX) ->
-	0;
-next_gid(N) ->
-	N+1.
-
-delta_gid(A, B) when A >= B ->
-	A-B;
-delta_gid(A, B) ->
-	A+?GIDMAX - B +1.
-
-
 -ifdef(TEST).
--include("fec_node_test.hrl").
+-include("fec_encoder_test.hrl").
 -endif.
 

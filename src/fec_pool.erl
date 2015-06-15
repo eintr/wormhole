@@ -30,6 +30,8 @@ start_link() ->
 
 init([]) ->
 	%io:format("~p: inited.\n", [?MODULE]),
+	{ok, Pid} = fec_decoder:start_link(),
+	put(decoder, Pid),
     {ok, {}}.
 
 handle_call(_Request, _From, State) ->

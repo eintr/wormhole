@@ -17,6 +17,10 @@ system(Str) ->
 	file:delete(TmpFname),
 	{Code, binary:bin_to_list(OutPutBin)}.
 
+timestamp_ms() ->
+	{A,B,C} = os:timestamp(),
+	A*1000000000 + B*1000 + C div 1000.
+
 -ifdef(TEST).
 -include("util_test.hrl").
 -endif.
