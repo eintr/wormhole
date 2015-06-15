@@ -21,7 +21,6 @@
 		 }).
 
 -record(msg, {
-		  connection_id,
 		  code,
 		  body
 		 }).

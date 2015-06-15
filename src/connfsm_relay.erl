@@ -32,22 +32,16 @@ start_link(ConnCfg) ->
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([{ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList}]) ->
-	{ok, TunPID} = tuncer:create([], [tun, {active, true}]),
-	put(tun_ifname, binary:bin_to_list(tuncer:devname(TunPID))),
-	{A1, A2, A3, A4} = TunLocalIP,
-	{B1, B2, B3, B4} = TunPeerIP,
-	{0, _} = util:system(io_lib:format("ip address add dev ~s ~p.~p.~p.~p peer ~p.~p.~p.~p", [get(tun_ifname), A1, A2, A3, A4, B1, B2, B3, B4])),
-	{0, _} = util:system(io_lib:format("ip link set dev ~s up", [get(tun_ifname)])),
-	{0, _} = util:system(io_lib:format("ip link set dev ~s mtu 1450", [get(tun_ifname)])),
-	lists:map(fun ({{A,B,C,D}, L}) ->
-				  util:system(io_lib:format("ip route add ~p.~p.~p.~p/~p dev ~s", [A,B,C,D,L, get(tun_ifname)]))
-			  end, ExtraRouteList),
-	io:format("~p: ~s is configured an activated.\n", [?MODULE, get(tun_ifname)]),
+init([{ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList} = ConnCFG]) ->
+	{ok, TunPID} = create_tun(ConnCFG),
+	{ok, FecEncoderPid} = fec_encoder:start_link(),
+	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(peeraddr, [PeerAddr]),
-    {ok, relay, {ConnID, TunPID}}.
+	{ok, relay, {ConnID, TunPID, FecEncoderPid, FecDecoderPid}}.
 
-relay({up, FromAddr, Msg}, {_ConnID, TunPID}=State) ->
+relay({up, FromAddr, MsgBin}, {_ConnID, TunPID, FecEncoderPid, FecDecoderPid}=State) ->
+	case gen_fsm:sync_event(FecDecoderPid, {FromAddr, MsgBin}) of
+	end,
 	case Msg#msg.code of
 		?CODE_DATA ->
 			case lists:member(FromAddr, get(peeraddr)) of
@@ -94,3 +88,16 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+create_tun({ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList}) ->
+	{ok, TunPID} = tuncer:create([], [tun, {active, true}]),
+	put(tun_ifname, binary:bin_to_list(tuncer:devname(TunPID))),
+	{A1, A2, A3, A4} = TunLocalIP,
+	{B1, B2, B3, B4} = TunPeerIP,
+	{0, _} = util:system(io_lib:format("ip address add dev ~s ~p.~p.~p.~p peer ~p.~p.~p.~p", [get(tun_ifname), A1, A2, A3, A4, B1, B2, B3, B4])),
+	{0, _} = util:system(io_lib:format("ip link set dev ~s up", [get(tun_ifname)])),
+	{0, _} = util:system(io_lib:format("ip link set dev ~s mtu 1450", [get(tun_ifname)])),
+	lists:map(fun ({{A,B,C,D}, L}) ->
+				  util:system(io_lib:format("ip route add ~p.~p.~p.~p/~p dev ~s", [A,B,C,D,L, get(tun_ifname)]))
+			  end, ExtraRouteList),
+	io:format("~p: ~s is configured an activated.\n", [?MODULE, get(tun_ifname)]),
+	{ok, TunPID}.

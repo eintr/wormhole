@@ -36,6 +36,17 @@ init([]) ->
     {ok, loop, []}.
 
 loop({up, FromAddr, FecFrameBin}, State) ->
+
+loop(_Event, State) ->
+    {next_state, loop, State}.
+
+loop(_Event, _From, State) ->
+    {reply, ok, state_name, State}.
+
+handle_event(_Event, StateName, State) ->
+    {next_state, StateName, State}.
+
+handle_sync_event({FromAddr, FecFrameBin}, _From, loop, State) ->
 	FecFrame = fec_frame:decode(FecFrameBin),
 	FecInfo = FecFrame#fec_frame.fec_info,
 	DeltaGid = fec:delta_gid(FecInfo#fec_info.fecg_id, get(minimal_gid)),
@@ -74,18 +85,9 @@ loop({up, FromAddr, FecFrameBin}, State) ->
 					{next_state, loop, State};
 				_Other ->
 					io:format("Got unknwon return ~p while decoding frame ~p.\n", [_Other, FecInfo]),
-					{next_state, loop, State}
+    					{reply, ok, loop, State}
 			end
 	end;
-loop(_Event, State) ->
-    {next_state, loop, State}.
-
-loop(_Event, _From, State) ->
-    {reply, ok, state_name, State}.
-
-handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
-
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
 

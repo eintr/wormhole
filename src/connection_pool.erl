@@ -45,6 +45,9 @@ init([]) ->
 	io:format("~p: inited.\n", [?MODULE]),
 	{ok, {}}.
 
+handle_call({destroy_conn, ConnID}, _From, State) ->
+	io:format("~p: destroy_conn not implemented, yet.\n", [?MODULE]),
+	{reply, todo, State};
 handle_call({create_conn, ConnCfg}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(ConnCfg),
 	{ConnID, _, _, _, _} = ConnCfg,
@@ -55,13 +58,12 @@ handle_call(_Request, _From, State) ->
 	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),
     {reply, ok, State}.
 
-handle_cast({up, FromAddr, MsgBin}, State) ->
-	{ok, Msg} = msg:decode(MsgBin),
-	case get(Msg#msg.connection_id) of
+handle_cast({up, FromAddr, Frame}, State) ->
+	case get(Frame#frame.connection_id) of
 		{Pid} ->
-			gen_fsm:send_event(Pid, {up, FromAddr, Msg});
+			gen_fsm:send_event(Pid, {up, FromAddr, Frame#frame.payload});
 		undefined ->
-			io:format("Got msg to unknown connection id: ~p\n", [Msg#msg.connection_id])
+			io:format("Got msg to unknown connection id: ~p, drop it\n", [Frame#frame.connection_id])
 	end,
 	{noreply, State};
 handle_cast(_Msg, State) ->

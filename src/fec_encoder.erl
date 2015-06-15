@@ -8,7 +8,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -22,15 +22,15 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start(Addr) ->
-    gen_fsm:start({local, ?SERVER}, ?MODULE, [Addr], []).
+start_link() ->
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([Addr]) ->
-	put(peeraddr, Addr),
+init([]) ->
+	put(conn_id, ConnID),
 	put(gsize, 2),
 	put(interleave, 1),
 	put(timeout, 10000),
@@ -38,8 +38,8 @@ init([Addr]) ->
 	put(encode_context, []),
     {ok, loop, {}}.
 
-loop({down, ToAddr, MsgBin}, State) ->
-	case fec:encode(MsgBin) of
+loop({down, ToAddr, Msg}, State) ->
+	case fec:encode(Msg) of
 		{ok, FecFrames} ->
 			lists:foreach(fun (F)->
 								  {ok, FecFrameBin} = fec_frame:encode(F),
