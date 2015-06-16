@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
--include("msg.hrl").
+-include("frame.hrl").
 -include("protocol.hrl").
 
 %% ------------------------------------------------------------------
@@ -46,7 +46,12 @@ init([]) ->
 	{ok, {}}.
 
 handle_call({destroy_conn, ConnID}, _From, State) ->
-	io:format("~p: destroy_conn not implemented, yet.\n", [?MODULE]),
+	case get(ConnID) of
+		{Pid} ->
+			gen_fsm:send_event(Pid, quit);
+		undefined ->
+			io:format("~p: connection: ~p not exsist, can't delete.\n", [?MODULE, ConnID])
+	end,
 	{reply, todo, State};
 handle_call({create_conn, ConnCfg}, _From, State) ->
 	{ok, Pid} = connfsm_relay:start(ConnCfg),
@@ -59,11 +64,11 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 handle_cast({up, FromAddr, Frame}, State) ->
-	case get(Frame#frame.connection_id) of
+	case get(Frame#frame.conn_id) of
 		{Pid} ->
 			gen_fsm:send_event(Pid, {up, FromAddr, Frame#frame.payload});
 		undefined ->
-			io:format("Got msg to unknown connection id: ~p, drop it\n", [Frame#frame.connection_id])
+			io:format("Got msg to unknown connection id: ~p, drop it\n", [Frame#frame.conn_id])
 	end,
 	{noreply, State};
 handle_cast(_Msg, State) ->

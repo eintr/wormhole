@@ -32,28 +32,37 @@ start_link(ConnCfg) ->
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([{ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList} = ConnCFG]) ->
+init([{ConnID, _TunLocalIP, _TunPeerIP, PeerAddr, _ExtraRouteList} = ConnCFG]) ->
 	{ok, TunPID} = create_tun(ConnCFG),
 	{ok, FecEncoderPid} = fec_encoder:start_link(),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(peeraddr, [PeerAddr]),
 	{ok, relay, {ConnID, TunPID, FecEncoderPid, FecDecoderPid}}.
 
-relay({up, FromAddr, MsgBin}, {_ConnID, TunPID, FecEncoderPid, FecDecoderPid}=State) ->
+relay({up, FromAddr, MsgBin}, {_ConnID, TunPID, _FecEncoderPid, FecDecoderPid}=State) ->
 	case gen_fsm:sync_event(FecDecoderPid, {FromAddr, MsgBin}) of
-	end,
-	case Msg#msg.code of
-		?CODE_DATA ->
-			case lists:member(FromAddr, get(peeraddr)) of
-				true -> null;
-				false -> put(peeraddr, get(peeraddr)++[FromAddr])
-			end	,
-			tuncer:send(TunPID, Msg#msg.body#msg_body_data.data),
-	    	{next_state, relay, State};
-		_Unknown ->
-			io:format("Don't know how to deal with msg code ~p\n", [_Unknown]),
-	    	{next_state, relay, State}
+		{ok, MsgBinList} ->
+			Msgs = lists:map(fun (B)-> {ok,M}=msg:decode(B),M end, MsgBinList),
+			lists:foreach(fun (Msg)->
+								  case Msg#msg.code of
+									  ?CODE_DATA ->
+										  put(peeraddr, [FromAddr]),
+										  tuncer:send(TunPID, Msg#msg.body#msg_body_data.data),
+										  {next_state, relay, State};
+									  _Unknown ->
+										  io:format("~p: Don't know how to deal with msg code ~p\n", [?MODULE, _Unknown]),
+										  {next_state, relay, State}
+								  end
+						  end, Msgs),
+			{next_state, relay, State};
+		pass ->
+			{next_state, relay, State};
+		_Result ->
+			io:format("~p: Unknown decode result: ~p\n", [?MODULE, _Result]),
+			{next_state, relay, State}
 	end;
+relay(quit, _State) ->
+	{stop, normal};
 relay(_Event, State) ->
 	io:format("conn/relay: Unknown event: ~p\n", [_Event]),
     {next_state, relay, State}.
@@ -70,11 +79,17 @@ handle_event(_Event, StateName, State) ->
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
 
-handle_info({tuntap, TunPID, TunPktBin}, relay, {ConnID, TunPID}=State) ->
-	Msg = #msg{connection_id = ConnID, code=?CODE_DATA, body=#msg_body_data{data=TunPktBin}},
+handle_info({tuntap, TunPID, TunPktBin}, relay, {_ConnID, TunPID, FecEncoderPid, _FecDecoderPid}=State) ->
+	Msg = #msg{code=?CODE_DATA, body=#msg_body_data{data=TunPktBin}},
 	{ok, MsgBin} = msg:encode(Msg),
-	gen_server:cast(fec_pool, {down, get(peeraddr), MsgBin}),
-    {next_state, relay, State};
+	case gen_fsm:sync_event(FecEncoderPid, {encode, MsgBin}) of
+		{ok, FecGroup} ->
+			lists:foreach(fun (FecFrame)->
+								  gen_server:cast(transcvr_pool, {down, get(peeraddr), FecFrame}) end,
+						  FecGroup);
+		pass-> pass
+	end,
+   	{next_state, relay, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
@@ -88,7 +103,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-create_tun({ConnID, TunLocalIP, TunPeerIP, PeerAddr, ExtraRouteList}) ->
+create_tun({_ConnID, TunLocalIP, TunPeerIP, _PeerAddr, ExtraRouteList}) ->
 	{ok, TunPID} = tuncer:create([], [tun, {active, true}]),
 	put(tun_ifname, binary:bin_to_list(tuncer:devname(TunPID))),
 	{A1, A2, A3, A4} = TunLocalIP,

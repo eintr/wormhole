@@ -4,11 +4,11 @@
 -include("frame.hrl").
 
 encode(Frame) ->
-	<<Frame#frame.conn_id:64/unsigned-big-integer, Frame#frame.payload/binary>>.
+	<<(Frame#frame.conn_id):64/unsigned-big-integer, (Frame#frame.payload)/binary>>.
 
 decode(FrameBin) ->
 	<< ConnID:64/unsigned-big-integer, Payload/binary>> = FrameBin,
-	#{conn_id=ConnID, payload=Payload}.
+	#frame{conn_id=ConnID, payload=Payload}.
 
 
 

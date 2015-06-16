@@ -30,37 +30,27 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init([]) ->
-	put(conn_id, ConnID),
 	put(gsize, 2),
 	put(interleave, 1),
 	put(timeout, 10000),
 	put(current_gid, 1),
-	put(encode_context, []),
+	put(pool, []),
     {ok, loop, {}}.
 
-loop({down, ToAddr, Msg}, State) ->
-	case fec:encode(Msg) of
+loop({encode, FecPayload}, _From, State) ->
+	case fec:encode(FecPayload) of
 		{ok, FecFrames} ->
-			lists:foreach(fun (F)->
-								  {ok, FecFrameBin} = fec_frame:encode(F),
-								  gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin})
-						  end, FecFrames),
-			{next_state, loop, State};
-		{need_mode} ->
-			{next_state, loop, State}
+			{reply, {ok, FecFrames}, loop, State};
+		need_mode ->
+			{reply, pass, loop, State}
 	end;
-loop({down_push, ToAddr, MsgBin}, State) ->	
-	{ok, FecFrames} = fec:encode_push(MsgBin),
-	lists:foreach(fun (F)->
-						  {ok, FecFrameBin} = fec_frame:encode(F),
-						  gen_server:cast(transcvr_pool, {down, ToAddr, FecFrameBin})
-				  end, FecFrames),
-	{next_state, loop, State};
-loop(_Event, State) ->
-    {next_state, loop, State}.
-
+loop({encode_push, _ToAddr, MsgBin}, _From, State) ->	
+	{reply, fec:encode_push(MsgBin), State};
 loop(_Event, _From, State) ->
     {reply, ok, state_name, State}.
+
+loop(_Event, State) ->
+    {next_state, loop, State}.
 
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.

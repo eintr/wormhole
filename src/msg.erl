@@ -15,8 +15,7 @@ encode(Msg) ->
 	case Msg#msg.code of
 		?CODE_DATA ->
 			BodyBin = Body#msg_body_data.data,
-			{ok, <<	(Msg#msg.connection_id):64/unsigned-big-integer,
-					(Msg#msg.code):8/unsigned-big-integer,
+			{ok, << (Msg#msg.code):8/unsigned-big-integer,
 					BodyBin/binary >>};
 		?CODE_CHAP ->
 			{ok, {Prefix, Len}} = ipaddr:prefix_parse(Body#msg_body_chap.prefix),
@@ -27,8 +26,7 @@ encode(Msg) ->
 							(Body#msg_body_chap.md5)/binary,
 							(Body#msg_body_chap.username)/binary
 					  >>,
-			{ok, <<	(Msg#msg.connection_id):64/unsigned-big-integer,
-					(Msg#msg.code):8/unsigned-big-integer,
+			{ok, <<	(Msg#msg.code):8/unsigned-big-integer,
 					BodyBin/binary >>};
 		?CODE_CHAP_CONNECT ->
 			RoutrPrefixBin = ipaddr:addrlist_to_bin(Body#msg_body_connect.route_prefixes),
@@ -39,25 +37,24 @@ encode(Msg) ->
 							(ipaddr:addr_to_u32bin(TunAddrS))/binary,
 							(ipaddr:addr_to_u32bin(TunAddrC))/binary,
 							RoutrPrefixBin/binary >>,
-			{ok, <<	(Msg#msg.connection_id):64/big-integer,
-					(Msg#msg.code):8/big-integer,
+			{ok, <<	(Msg#msg.code):8/big-integer,
 					BodyBin/binary >>};
 		_Code ->
 			{error, "Unknown message code."}
 	end.
 
 decode(MsgBin) ->
-	<<ConnectionID:64/big-integer, Code:8/big-integer, BodyBin/binary>> = MsgBin,
+	<<Code:8/big-integer, BodyBin/binary>> = MsgBin,
 	case Code of
 		?CODE_DATA ->
 			Body = #msg_body_data{data=BodyBin},
-			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
+			{ok, #msg{code=Code, body=Body}};
 		?CODE_CHAP ->
 			<<ConnIDClient:32/unsigned-big-integer, Salt:8/binary, Prefix:4/binary, PrefixLen:8/big-integer, MD5:16/binary, Username/binary>> = BodyBin,
 			{A,B,C,D}=ipaddr:u32bin_to_addr(Prefix),
 			PrefixStr = lists:flatten(io_lib:format("~p.~p.~p.~p/~p", [A,B,C,D,PrefixLen])),
 			Body = #msg_body_chap{ conn_id_client=ConnIDClient, salt=Salt, prefix=PrefixStr, md5=MD5, username=Username },
-			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
+			{ok, #msg{code=Code, body=Body}};
 		?CODE_CHAP_CONNECT ->
 			<<	ConnIDClient:32/unsigned-big-integer,
 				ConnIDServer:32/unsigned-big-integer,
@@ -69,7 +66,7 @@ decode(MsgBin) ->
 										server_tun_addr=ipaddr:u32bin_to_addr(TunAddrServer),
 										client_tun_addr=ipaddr:u32bin_to_addr(TunAddrClient),
 										route_prefixes=ipaddr:bin_to_addrlist(RoutePrefixes)},
-			{ok, #msg{connection_id=ConnectionID, code=Code, body=Body}};
+			{ok, #msg{code=Code, body=Body}};
 		_Code ->
 			io:format("Unknown Msg code ~p\n", [_Code]),
 			{error, "Unknown code."}

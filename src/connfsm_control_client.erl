@@ -2,6 +2,7 @@
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
+-include("frame.hrl").
 -include("msg.hrl").
 -include("protocol.hrl").
 
@@ -30,7 +31,7 @@ start_link() ->
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init(State) ->
+init([]) ->
 	{ok, Filename} = application:get_env(configfile),
 	{ok, Config} = file:script(Filename),
 	Salt = <<"TestSalt">>,
@@ -42,19 +43,23 @@ init(State) ->
 	{_, SAddr} = lists:keyfind(server_addr, 1, Config),
 	{ok, ServerAddr} = inet:parse_ipv4_address(SAddr),
 	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
-	ChapMsg = #msg{	connection_id=?CONNID_CTRL,
-					code=?CODE_CHAP,
+
+	{ok, FecEncoderPid} = fec_encoder:start_link(),
+	{ok, FecDecoderPid} = fec_decoder:start_link(),
+
+	ChapMsg = #msg{	code=?CODE_CHAP,
 					body= #msg_body_chap{	salt=Salt,
 											conn_id_client=10001,
 											prefix=LocalNetPrefix,
 											md5=crypto:hash(md5, <<Salt/binary, Password/binary>>),
 											username=Username }},
 	{ok, ChapMsgBin} = msg:encode(ChapMsg),
-	gen_server:cast(fec_pool, {down_push, [{ServerAddr, ServerPort}], ChapMsgBin}),
-	{ok, wait_chap_result, {{ServerAddr, ServerPort}, State}, 3000}.
+	{ok, [ChapFecFrame]} = gen_fsm:sync_event(FecEncoderPid, {encode_push, ChapMsgBin}),
+	gen_server:cast(transcvr_pool, {down, {ServerAddr, ServerPort}, #frame{conn_id=?CONNID_CTRL, payload=ChapFecFrame}}),
+	{ok, wait_chap_result, {{ServerAddr, ServerPort}, {FecEncoderPid, FecDecoderPid}}, 3141}.
 
 wait_chap_result(timeout, {_Server, State}) ->
-	io:format("~p: no chap response within 3 seconds.\n", [?MODULE]),
+	io:format("~p: no chap response within 3.141 seconds.\n", [?MODULE]),
 	{stop, "Auth timed out", State};
 wait_chap_result({up, {ServerAddr, _}=FromAddr, Msg}, {{ServerAddr, _}, State}) ->
 	case Msg#msg.code of

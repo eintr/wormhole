@@ -35,31 +35,28 @@ init([]) ->
 	put(minimal_gid, 0),
     {ok, loop, []}.
 
-loop({up, FromAddr, FecFrameBin}, State) ->
-
+loop(timeout, State) ->
+    {next_state, loop, State}.
 loop(_Event, State) ->
     {next_state, loop, State}.
 
 loop(_Event, _From, State) ->
     {reply, ok, state_name, State}.
 
-handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
-
-handle_sync_event({FromAddr, FecFrameBin}, _From, loop, State) ->
+handle_event({FromAddr, FecFrameBin}, _From, State) ->
 	FecFrame = fec_frame:decode(FecFrameBin),
 	FecInfo = FecFrame#fec_frame.fec_info,
 	DeltaGid = fec:delta_gid(FecInfo#fec_info.fecg_id, get(minimal_gid)),
 	if
 		DeltaGid <0 ->
 			io:format("Frame(~p) came too late.\n", [FecInfo]),
-			{next_state, loop, State};
+			{reply, too_late, loop, State};
 		(FecInfo#fec_info.fec_gsize == 0) or (FecInfo#fec_info.fec_gsize > 16) ->
 			io:format("Frame ~p has invalid fec_gsize.\n", [FecInfo]),
-			{next_state, loop, State};
+			{reply, invalid, loop, State};
 		FecInfo#fec_info.fec_gsize == 1 ->	% No FEC
 			gen_server:cast(conn_pool, {up, FromAddr, FecFrame#fec_frame.payload }),
-			{next_state, loop, State};
+			{reply, {ok, [FecFrame#fec_frame.payload]}, loop, State};
 		true ->
 			case get({decode_context, FecInfo#fec_info.fecg_id}) of
 				undefined ->
@@ -72,22 +69,26 @@ handle_sync_event({FromAddr, FecFrameBin}, _From, loop, State) ->
 			end,
 			case fec:decode(FecFrame) of
 				{ok, Msgs} ->
-					lists:foreach(fun (M)->
-										  gen_server:cast(conn_pool, {up, FromAddr, M}) end, Msgs),
-					{next_state, loop, State};
+					{reply, {ok, Msgs}, loop, State};
 				need_more ->
-					{next_state, loop, State};
+					{reply, pass, loop, State};
 				duplicated ->
 					io:format("Frame(~p) is duplicated.\n", [FecInfo]),
-					{next_state, loop, State};
+					{reply, pass, loop, State};
 				completed ->
+					erase(FecInfo#fec_info.fecg_id),
 					io:format("Frame group ~p is completed.\n", [FecInfo#fec_info.fecg_id]),
-					{next_state, loop, State};
+					{reply, pass, loop, State};
 				_Other ->
 					io:format("Got unknwon return ~p while decoding frame ~p.\n", [_Other, FecInfo]),
-    					{reply, ok, loop, State}
+    				{reply, unknown, loop, State}
 			end
 	end;
+handle_event(_Event, StateName, State) ->
+    {next_state, StateName, State}.
+
+handle_sync_event({FromAddr, FecFrameBin}, _From, loop, State) ->
+
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
 
