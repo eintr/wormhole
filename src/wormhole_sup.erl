@@ -25,7 +25,7 @@ start_link() ->
 init([]) ->
 	AuthSvr = ?CHILD(auth_server, worker),
 	TxRx = ?CHILD(transcvr_pool, worker),
-	FecPool = ?CHILD(fec_pool, worker),
+	%FecPool = ?CHILD(fec_pool, worker),
 	ConnPool = ?CHILD(connection_pool, worker),
-    {ok, { {one_for_one, 5, 10}, [AuthSvr, TxRx, FecPool, ConnPool]} }.
+    {ok, { {one_for_one, 5, 10}, [AuthSvr, TxRx, ConnPool]} }.
 

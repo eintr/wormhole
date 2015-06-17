@@ -39,10 +39,9 @@ init([{ConnID, _TunLocalIP, _TunPeerIP, PeerAddr, _ExtraRouteList} = ConnCFG]) -
 	put(peeraddr, [PeerAddr]),
 	{ok, relay, {ConnID, TunPID, FecEncoderPid, FecDecoderPid}}.
 
-relay({up, FromAddr, MsgBin}, {_ConnID, TunPID, _FecEncoderPid, FecDecoderPid}=State) ->
-	case gen_fsm:sync_event(FecDecoderPid, {FromAddr, MsgBin}) of
-		{ok, MsgBinList} ->
-			Msgs = lists:map(fun (B)-> {ok,M}=msg:decode(B),M end, MsgBinList),
+relay({up, FromAddr, FecFrame}, {_ConnID, TunPID, _FecEncoderPid, FecDecoderPid}=State) ->
+	case gen_fsm:sync_event(FecDecoderPid, {FromAddr, FecFrame}) of
+		{ok, Msgs} ->
 			lists:foreach(fun (Msg)->
 								  case Msg#msg.code of
 									  ?CODE_DATA ->
@@ -81,11 +80,10 @@ handle_sync_event(_Event, _From, StateName, State) ->
 
 handle_info({tuntap, TunPID, TunPktBin}, relay, {_ConnID, TunPID, FecEncoderPid, _FecDecoderPid}=State) ->
 	Msg = #msg{code=?CODE_DATA, body=#msg_body_data{data=TunPktBin}},
-	{ok, MsgBin} = msg:encode(Msg),
-	case gen_fsm:sync_event(FecEncoderPid, {encode, MsgBin}) of
+	case gen_fsm:sync_event(FecEncoderPid, {encode, Msg}) of
 		{ok, FecGroup} ->
-			lists:foreach(fun (FecFrame)->
-								  gen_server:cast(transcvr_pool, {down, get(peeraddr), FecFrame}) end,
+			lists:foreach(fun (B)->
+								  gen_server:cast(transcvr_pool, {down, get(peeraddr), B}) end,
 						  FecGroup);
 		pass-> pass
 	end,

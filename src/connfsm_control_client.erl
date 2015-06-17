@@ -2,7 +2,6 @@
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
--include("frame.hrl").
 -include("msg.hrl").
 -include("protocol.hrl").
 
@@ -44,7 +43,7 @@ init([]) ->
 	{ok, ServerAddr} = inet:parse_ipv4_address(SAddr),
 	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
 
-	{ok, FecEncoderPid} = fec_encoder:start_link(),
+	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL}),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 
 	ChapMsg = #msg{	code=?CODE_CHAP,
@@ -54,8 +53,9 @@ init([]) ->
 											md5=crypto:hash(md5, <<Salt/binary, Password/binary>>),
 											username=Username }},
 	{ok, ChapMsgBin} = msg:encode(ChapMsg),
-	{ok, [ChapFecFrame]} = gen_fsm:sync_event(FecEncoderPid, {encode_push, ChapMsgBin}),
-	gen_server:cast(transcvr_pool, {down, {ServerAddr, ServerPort}, #frame{conn_id=?CONNID_CTRL, payload=ChapFecFrame}}),
+	{ok, [ChapWireBin]} = gen_fsm:sync_send_event(FecEncoderPid, {encode_push, ChapMsgBin}),
+	io:format("~p: About to send chap msg: ~p\n", [?MODULE, ChapWireBin]),
+	gen_server:cast(transcvr_pool, {down, {ServerAddr, ServerPort}, ChapWireBin}),
 	{ok, wait_chap_result, {{ServerAddr, ServerPort}, {FecEncoderPid, FecDecoderPid}}, 3141}.
 
 wait_chap_result(timeout, {_Server, State}) ->

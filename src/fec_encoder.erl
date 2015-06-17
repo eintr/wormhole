@@ -2,13 +2,13 @@
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
--include("fec_frame.hrl").
+-include("wire_frame.hrl").
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0]).
+-export([start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -22,32 +22,44 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link() ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(CFG) ->
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [CFG], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init([]) ->
+init([CFG]) ->
+	{ConnID} = CFG,
+	put(conn_id, ConnID),
+	put(shared_key, <<"=PRESET=">>),
 	put(gsize, 2),
 	put(interleave, 1),
 	put(timeout, 10000),
 	put(current_gid, 1),
 	put(pool, []),
+	io:format("~p: inited ~p.\n", [?MODULE, self()]),
     {ok, loop, {}}.
 
-loop({encode, FecPayload}, _From, State) ->
-	case fec:encode(FecPayload) of
-		{ok, FecFrames} ->
-			{reply, {ok, FecFrames}, loop, State};
+loop({encode, MsgBin}, _From, State) ->
+	io:format("~p: EnFEC msg ~p\n", [?MODULE, MsgBin]),
+	MsgBinCi = cryptor:en(MsgBin, get(shared_key)),
+	case fec:encode(MsgBinCi, byte_size(MsgBin)) of
+		{ok, WireFrames} ->
+			Bins = lists:map(fun(F)-> {ok, B}=wire_frame:encode(F), B end, WireFrames),
+			{reply, {ok, Bins}, loop, State};
 		need_mode ->
 			{reply, pass, loop, State}
 	end;
-loop({encode_push, _ToAddr, MsgBin}, _From, State) ->	
-	{reply, fec:encode_push(MsgBin), State};
+loop({encode_push, MsgBin}, _From, State) ->	
+	io:format("~p: Encoding with push msg ~p\n", [?MODULE, MsgBin]),
+	MsgBinCi = cryptor:en(MsgBin, get(shared_key)),
+	{ok, [WireFrame]} = fec:encode_push(MsgBinCi, byte_size(MsgBin)),
+	{ok, WireFrameBin} = wire_frame:encode(WireFrame),
+	{reply, {ok, [WireFrameBin]}, loop, State};
 loop(_Event, _From, State) ->
-    {reply, ok, state_name, State}.
+	io:format("~p: Donlt know how to process sync event: ~p\n", [?MODULE, _Event]),
+    {reply, ok, loop, State}.
 
 loop(_Event, State) ->
     {next_state, loop, State}.

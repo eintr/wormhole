@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
--include("frame.hrl").
+-include("wire_frame.hrl").
 -include("protocol.hrl").
 
 %% ------------------------------------------------------------------
@@ -63,12 +63,12 @@ handle_call(_Request, _From, State) ->
 	io:format("~p: Don't know how to deal with call ~p\n", [?SERVER, _Request]),
     {reply, ok, State}.
 
-handle_cast({up, FromAddr, Frame}, State) ->
-	case get(Frame#frame.conn_id) of
+handle_cast({up, FromAddr, WireFrame}, State) ->
+	case get(WireFrame#wire_frame.conn_id) of
 		{Pid} ->
-			gen_fsm:send_event(Pid, {up, FromAddr, Frame#frame.payload});
+			gen_fsm:send_event(Pid, {up, FromAddr, WireFrame});
 		undefined ->
-			io:format("Got msg to unknown connection id: ~p, drop it\n", [Frame#frame.conn_id])
+			io:format("Got msg to unknown connection id: ~p, drop it\n", [WireFrame#wire_frame.conn_id])
 	end,
 	{noreply, State};
 handle_cast(_Msg, State) ->

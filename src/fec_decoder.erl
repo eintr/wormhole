@@ -2,7 +2,7 @@
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
 
--include("fec_frame.hrl").
+-include("wire_frame.hrl").
 -include("fec.hrl").
 
 %% ------------------------------------------------------------------
@@ -33,6 +33,8 @@ start_link() ->
 init([]) ->
 	put(timeout, 10000),
 	put(minimal_gid, 0),
+	io:format("~p: inited ~p.\n", [?MODULE, self()]),
+	put(shared_key, <<"=PRESET=">>),
     {ok, loop, []}.
 
 loop(timeout, State) ->
@@ -43,9 +45,8 @@ loop(_Event, State) ->
 loop(_Event, _From, State) ->
     {reply, ok, state_name, State}.
 
-handle_event({FromAddr, FecFrameBin}, _From, State) ->
-	FecFrame = fec_frame:decode(FecFrameBin),
-	FecInfo = FecFrame#fec_frame.fec_info,
+handle_event({_FromAddr, WireFrame}, _From, State) ->
+	FecInfo = WireFrame#wire_frame.fec_info,
 	DeltaGid = fec:delta_gid(FecInfo#fec_info.fecg_id, get(minimal_gid)),
 	if
 		DeltaGid <0 ->
@@ -55,20 +56,21 @@ handle_event({FromAddr, FecFrameBin}, _From, State) ->
 			io:format("Frame ~p has invalid fec_gsize.\n", [FecInfo]),
 			{reply, invalid, loop, State};
 		FecInfo#fec_info.fec_gsize == 1 ->	% No FEC
-			gen_server:cast(conn_pool, {up, FromAddr, FecFrame#fec_frame.payload }),
-			{reply, {ok, [FecFrame#fec_frame.payload]}, loop, State};
+			PayLoadSize = FecInfo#fec_info.fec_payload_size,
+			<<MsgBin:PayLoadSize/binary, _/binary>>
+			= cryptor:de(WireFrame#wire_frame.payload_cipher, get(shared_key)),
+			Msg = msg:decode(MsgBin),
+			{reply, {ok, [Msg]}, loop, State};
 		true ->
-			case get({decode_context, FecInfo#fec_info.fecg_id}) of
-				undefined ->
-					Context = #fecg_context{	id = FecInfo#fec_info.fecg_id,
-												width = FecInfo#fec_info.fec_gsize,
-												timestamp = util:timestamp_ms(),
-												pool=[]},
-					put({decode_context, FecInfo#fec_info.fecg_id}, Context);
-				_ -> ok
-			end,
-			case fec:decode(FecFrame) of
-				{ok, Msgs} ->
+			case fec:decode(WireFrame) of
+				{ok, PayloadCyphers} ->
+					Msgs = lists:map(fun(B)->
+											 PayLoadSize = FecInfo#fec_info.fec_payload_size,
+											 <<MsgBin:PayLoadSize/binary, _/binary>>
+											 =cryptor:de(B, get(shared_key)),
+											 {ok, M} = msg:decode(MsgBin),
+											 M
+									 end, PayloadCyphers),
 					{reply, {ok, Msgs}, loop, State};
 				need_more ->
 					{reply, pass, loop, State};

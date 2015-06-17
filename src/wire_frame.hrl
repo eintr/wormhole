@@ -4,11 +4,13 @@
 -record(fec_info, {
 		  fecg_id,
 		  fec_seq,
-		  fec_gsize
+		  fec_gsize,
+		  fec_payload_size
 		 }).
 
--record(fec_frame, {
+-record(wire_frame, {
+		  conn_id,
 		  fec_info,
-		  payload
+		  payload_cipher
 		 }).
 

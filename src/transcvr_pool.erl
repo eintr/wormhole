@@ -68,16 +68,16 @@ init([]) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast({down, {DAddr, DPort}, Frame}, {DownIndex}) ->
+handle_cast({down, {DAddr, DPort}, WireBin}, {DownIndex}) ->
 	[{_Addr, Socket}=H|T] = DownIndex,
-	%io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, FrameBin]),
-	gen_udp:send(Socket, DAddr, DPort, frame:encode(Frame)),	% TODO: traffic detection here!
+	io:format("~p: Going to send(~p, ~p, ~p, ~p)..", [?MODULE, Socket, DAddr, DPort, WireBin]),
+	gen_udp:send(Socket, DAddr, DPort, WireBin),	% TODO: traffic detection here!
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({udp, _Socket, SAddr, SPort, FrameBin}, State) ->
-	gen_server:cast(connection_pool, {up, {SAddr, SPort}, frame:decode(FrameBin)}),
+	gen_server:cast(connection_pool, {up, {SAddr, SPort}, wire_frame:decode(FrameBin)}),
 	{noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
