@@ -36,7 +36,7 @@ init([]) ->
     {ok, loop, []}.
 
 loop(timeout, State) ->
-    {next_state, loop, State}.
+    {next_state, loop, State};
 loop(_Event, State) ->
     {next_state, loop, State}.
 
@@ -86,8 +86,6 @@ handle_event({FromAddr, FecFrameBin}, _From, State) ->
 	end;
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.
-
-handle_sync_event({FromAddr, FecFrameBin}, _From, loop, State) ->
 
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
