@@ -32,7 +32,7 @@ start_link() ->
 
 init(State) ->
 	io:format("~p: inited.\n", [?MODULE]),
-	{ok, FecEncoderPid} = fec_encoder:start_link(),
+	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL}),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(fec_encoder, FecEncoderPid),
 	put(fec_decoder, FecDecoderPid),
@@ -40,7 +40,7 @@ init(State) ->
 	{ok, control, State}.
 
 control({up, FromAddr, WireFrame}, State) ->
-	case gen_fsm:sync_event(get(fec_decoder), {FromAddr, WireFrame}) of
+	case gen_fsm:sync_send_event(get(fec_decoder), {FromAddr, WireFrame}) of
 		{ok, Msgs} -> lists:foreach(fun (M)-> msg_process(FromAddr, M) end, Msgs);
 		pass -> ok;
 		_Result ->

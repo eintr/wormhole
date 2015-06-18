@@ -42,10 +42,7 @@ loop(timeout, State) ->
 loop(_Event, State) ->
     {next_state, loop, State}.
 
-loop(_Event, _From, State) ->
-    {reply, ok, state_name, State}.
-
-handle_event({_FromAddr, WireFrame}, _From, State) ->
+loop({_FromAddr, WireFrame}, _From, State) ->
 	FecInfo = WireFrame#wire_frame.fec_info,
 	DeltaGid = fec:delta_gid(FecInfo#fec_info.fecg_id, get(minimal_gid)),
 	if
@@ -86,6 +83,9 @@ handle_event({_FromAddr, WireFrame}, _From, State) ->
     				{reply, unknown, loop, State}
 			end
 	end;
+loop(_Event, _From, State) ->
+    {reply, ok, loop, State}.
+
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.
 
