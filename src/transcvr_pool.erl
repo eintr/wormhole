@@ -70,7 +70,7 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({down, {DAddr, DPort}, WireBin}, {DownIndex}) ->
 	[{_Addr, Socket}=H|T] = DownIndex,
-	io:format("~p: Going to send(~p, ~p, ~p, ~p)..\n", [?MODULE, Socket, DAddr, DPort, WireBin]),
+	%io:format("~p: Going to send(~p, ~p, ~p, ~p)..\n", [?MODULE, Socket, DAddr, DPort, WireBin]),
 	gen_udp:send(Socket, DAddr, DPort, WireBin),	% TODO: traffic detection here!
 	{noreply, {T++[H]}};
 handle_cast(_Msg, State) ->
