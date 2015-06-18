@@ -23,7 +23,7 @@
 %% ------------------------------------------------------------------
 
 start_link(CFG) ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [CFG], []).
+    gen_fsm:start_link(?MODULE, [CFG], []).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
