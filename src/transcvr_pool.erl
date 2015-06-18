@@ -76,9 +76,9 @@ handle_cast({down, {DAddr, DPort}, WireBin}, {DownIndex}) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({udp, _Socket, SAddr, SPort, FrameBin}, State) ->
-	{ok, Frame} = wire_frame:decode(FrameBin),
-	gen_server:cast(connection_pool, {up, {SAddr, SPort}, Frame}),
+handle_info({udp, _Socket, SAddr, SPort, WireBin}, State) ->
+	{ok, WireFrame} = wire_frame:decode(WireBin),
+	gen_server:cast(connection_pool, {up, {SAddr, SPort}, WireFrame}),
 	{noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
