@@ -105,16 +105,16 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 push_msg(DstAddr, Msg) ->
-	{ok, MsgBin} = msg:encode(Msg),
+	%{ok, MsgBin} = msg:encode(Msg),
 	io:format("~p: Pushing msg: ~p\n", [?MODULE, Msg]),
-	{ok, WireBins} = gen_fsm:sync_send_event(get(fec_encoder), {encode_push, MsgBin}),
+	{ok, WireBins} = gen_fsm:sync_send_event(get(fec_encoder), {encode_push, Msg}),
 	lists:foreach(fun (W)-> 
 						  gen_server:cast(transcvr_pool, {down, DstAddr, W})
 				  end, WireBins),
 	ok.
 
 chap_result(FromAddr, WireFrame) ->
-	case gen_fsm:sync_event(get(fec_decoder), {FromAddr, WireFrame}) of
+	case gen_fsm:sync_send_event(get(fec_decoder), {FromAddr, WireFrame}) of
 		{ok, [Msg]} ->
 			case Msg#msg.code of
 				?CODE_CHAP_CONNECT ->

@@ -41,8 +41,9 @@ init([CFG]) ->
 	io:format("~p: inited ~p.\n", [?MODULE, self()]),
     {ok, loop, {}}.
 
-loop({encode, MsgBin}, _From, State) ->
-	io:format("~p: EnFEC msg ~p\n", [?MODULE, MsgBin]),
+loop({encode, Msg}, _From, State) ->
+	io:format("~p: EnFEC msg ~p\n", [?MODULE, Msg]),
+	{ok, MsgBin} = msg:encode(Msg),
 	MsgBinCi = cryptor:en(MsgBin, get(shared_key)),
 	case fec:encode(MsgBinCi, byte_size(MsgBin)) of
 		{ok, WireFrames} ->
@@ -51,8 +52,9 @@ loop({encode, MsgBin}, _From, State) ->
 		need_mode ->
 			{reply, pass, loop, State}
 	end;
-loop({encode_push, MsgBin}, _From, State) ->	
-	io:format("~p: Encoding with push msg ~p\n", [?MODULE, MsgBin]),
+loop({encode_push, Msg}, _From, State) ->	
+	io:format("~p: Encoding with push msg ~p\n", [?MODULE, Msg]),
+	{ok, MsgBin} = msg:encode(Msg),
 	MsgBinCi = cryptor:en(MsgBin, get(shared_key)),
 	{ok, [WireFrame]} = fec:encode_push(MsgBinCi, byte_size(MsgBin)),
 	{ok, WireFrameBin} = wire_frame:encode(WireFrame),
