@@ -76,6 +76,14 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+push_msg(DstAddr, Msg) ->
+	io:format("~p: Pushing msg: ~p\n", [?MODULE, Msg]),
+	{ok, WireBins} = gen_fsm:sync_send_event(get(fec_encoder), {encode_push, Msg}),
+	lists:foreach(fun (W)->
+						  gen_server:cast(transcvr_pool, {down, DstAddr, W})
+				  end, WireBins),
+	ok.
+
 msg_process(FromAddr, Msg) ->
 	case Msg#msg.code of
 		?CODE_CHAP ->
@@ -105,10 +113,7 @@ msg_process_chap(FromAddr, Msg) ->
 											server_tun_addr=LocalTunIP,
 											client_tun_addr=PeerTunIP,
 											route_prefixes=[]}},
-	{ok, MsgConnectBin} = msg:encode(MsgConnect),
-	io:format("~p: accepted connection ~p.\n", [?MODULE, ConnID]),
-	{ok, [ConnFrameBin]} = gen_fsm:sync_send_event(get(fec_encoder), {encode_push, MsgConnectBin}),
-	gen_server:cast(transcvr_pool, {down, FromAddr, ConnFrameBin}),
+	push_msg(FromAddr, MsgConnect),
 	put(server_conn_id, get(server_conn_id)+1),
 	ok.
 
