@@ -1,5 +1,5 @@
 -module(util).
--export([system/1]).
+-export([system/1, timestamp_ms/0]).
 
 system(Str) ->
 	PidStr = lists:flatten(io_lib:format("~p", [self()])),
