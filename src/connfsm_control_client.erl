@@ -44,7 +44,9 @@ init([]) ->
 	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
 
 	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL}),
+	put(fec_encoder, FecEncoderPid),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
+	put(fec_decoder, FecDecoderPid),
 
 	ChapMsg = #msg{	code=?CODE_CHAP,
 					body= #msg_body_chap{	salt=Salt,
@@ -52,31 +54,17 @@ init([]) ->
 											prefix=LocalNetPrefix,
 											md5=crypto:hash(md5, <<Salt/binary, Password/binary>>),
 											username=Username }},
-	{ok, ChapMsgBin} = msg:encode(ChapMsg),
-	{ok, [ChapWireBin]} = gen_fsm:sync_send_event(FecEncoderPid, {encode_push, ChapMsgBin}),
-	io:format("~p: About to send chap msg: ~p\n", [?MODULE, ChapWireBin]),
-	gen_server:cast(transcvr_pool, {down, {ServerAddr, ServerPort}, ChapWireBin}),
+	push_msg({ServerAddr, ServerPort}, ChapMsg),
 	{ok, wait_chap_result, {{ServerAddr, ServerPort}, {FecEncoderPid, FecDecoderPid}}, 3141}.
 
 wait_chap_result(timeout, {_Server, State}) ->
 	io:format("~p: no chap response within 3.141 seconds.\n", [?MODULE]),
 	{stop, "Auth timed out", State};
-wait_chap_result({up, {ServerAddr, _}=FromAddr, Msg}, {{ServerAddr, _}, State}) ->
-	case Msg#msg.code of
-		?CODE_CHAP_CONNECT ->
-			io:format("~p: CHAP success, create conn.\n", [?MODULE]),
-			Body = Msg#msg.body,
-			ConnID = msg:connid_combine(Body#msg_body_connect.conn_id_server, Body#msg_body_connect.conn_id_client),
-			LocalIP = Body#msg_body_connect.client_tun_addr,
-			PeerIP = Body#msg_body_connect.server_tun_addr,
-			%{ConnID, LocalTunIP, PeerTunIP, RemoteAddr, ExtraRouteList}
-			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalIP, PeerIP, FromAddr, []}}),
-			{next_state, loop, State};
-		?CODE_CHAP_REJECT ->
-			{stop, "Auth denied.", State};
-		_ ->
-			io:format("~p: Don't know how to deal msg ~p\n", [?MODULE, Msg]),
-			{next_state, wait_chap_result, State}
+wait_chap_result({up, FromAddr, WireFrame}, State) ->
+	case chap_result(FromAddr, WireFrame) of
+		connected -> {next_state, loop, State};
+		rejected -> {stop, "Chap auth rejected."};
+		ignore -> {next_state, wait_chap_result, State}
 	end;
 wait_chap_result(_Msg, State) ->
 	io:format("~p: Don't know how to deal with msg ~p\n", [?MODULE, _Msg]),
@@ -116,4 +104,32 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+push_msg(DstAddr, Msg) ->
+	{ok, MsgBin} = msg:encode(Msg),
+	io:format("~p: Pushing msg: ~p\n", [?MODULE, Msg]),
+	{ok, WireBins} = gen_fsm:sync_send_event(get(fec_encoder), {encode_push, MsgBin}),
+	lists:foreach(fun (W)-> 
+						  gen_server:cast(transcvr_pool, {down, DstAddr, W})
+				  end, WireBins),
+	ok.
 
+chap_result(FromAddr, WireFrame) ->
+	case gen_fsm:sync_event(get(fec_decoder), {FromAddr, WireFrame}) of
+		{ok, [Msg]} ->
+			case Msg#msg.code of
+				?CODE_CHAP_CONNECT ->
+					io:format("~p: CHAP success, create conn.\n", [?MODULE]),
+					Body = Msg#msg.body,
+					ConnID = msg:connid_combine(Body#msg_body_connect.conn_id_server, Body#msg_body_connect.conn_id_client),
+					LocalIP = Body#msg_body_connect.client_tun_addr,
+					PeerIP = Body#msg_body_connect.server_tun_addr,
+					%{ConnID, LocalTunIP, PeerTunIP, RemoteAddr, ExtraRouteList}
+					ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalIP, PeerIP, FromAddr, []}}),
+					connected;
+				?CODE_CHAP_REJECT ->
+					{rejected, "Reason"};
+				_ ->
+					io:format("~p: Don't know how to deal ~p while expecting chap result.\n", [?MODULE, Msg]),
+					ignore
+			end
+	end.
