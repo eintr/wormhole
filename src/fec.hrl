@@ -1,5 +1,6 @@
--record(fecg_context, {	id,
-						width,
-						timestamp,
-						pool}).
+-record(fec_encode_context, {	current_gid,
+								width,
+								interleave,
+								timestamp,
+								pool}).
 
