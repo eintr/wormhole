@@ -32,7 +32,6 @@ start_link() ->
 
 init([]) ->
 	put(timeout, 10000),
-	put(minimal_gid, 0),
 	io:format("~p: inited ~p.\n", [?MODULE, self()]),
 	put(shared_key, <<"=PRESET=">>),
     {ok, loop, []}.

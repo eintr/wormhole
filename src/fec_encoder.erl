@@ -46,7 +46,7 @@ loop({encode, Msg}, _From, State) ->
 		{ok, WireFrames} ->
 			Bins = lists:map(fun(F)-> {ok, B}=wire_frame:encode(F), B end, WireFrames),
 			{reply, {ok, Bins}, loop, State};
-		need_mode ->
+		need_more ->
 			{reply, pass, loop, State}
 	end;
 loop({encode_push, Msg}, _From, State) ->	

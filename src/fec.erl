@@ -1,18 +1,20 @@
 -module(fec).
 -export([encode/2, encode_push/2, decode/1, next_gid/1, delta_gid/2]).
 
+-ifdef(TEST).
+-export([bin_xor/2]).
+-endif.
+
 -include("wire_frame.hrl").
 -include("fec.hrl").
 
 encode(FramePayload, Size) ->	% Size is needed here! Since the FramePayload was encrypted!
 	Context = complish_intlv_pool(get(encode_context)),
 	[H|T] = Context#fec_encode_context.intlv_pool,
-	%FecInfo = get_fecg_fecinfo(H),
-	%FecFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
 	case fecg_encode(H, {FramePayload, Size}) of
 		{pass, NewH} ->
 			put(encode_context, Context#fec_encode_context{intlv_pool=T++[NewH]}),
-			pass;
+			need_more;
 		{ok, WireFrames} ->
 			put(encode_context, Context#fec_encode_context{intlv_pool=T}),
 			{ok, WireFrames}
@@ -125,22 +127,27 @@ pool_encode(C) ->
 
 %[{fec_seq, Data}, ...]
 pool_decode(L) ->
-	CompleteList = case lists:keyfind(0, 1, L) of
-					   {0, I, _} ->
+	%io:format("Trying to decode ~p\n", [L]),
+	CompleteList = case lists:keytake(0, 1, L) of
+					   {value, {0, PartyI, PartyData}, L1} ->
+						   %io:format("Party frame is {~p, ~p}\n", [PartyI, PartyData]),
 						   MissedPayLoad = lists:foldl(fun
-														({_, _, Data}, Xor)->
+														   ({_, _, Data}, Xor)->
 															bin_xor(Data, Xor)
-													end, <<>>, L),
+													   end, PartyData, L1),
+						   %io:format("MissedPayLoad is ~p\n", [MissedPayLoad]),
 						   MissedLen = lists:foldl(fun ({_, FecInfo, _}, Len)->
-														   Len bxor FecInfo#fec_info.fec_payload_size
-												   end, 0, L),
+														   Len - FecInfo#fec_info.fec_payload_size
+												   end, PartyI#fec_info.fec_payload_size, L1),
+						   %io:format("MissedLen is ~p\n", [MissedLen]),
 						   [MissedSeq] = lists:foldl(fun ({_, FecInfo, _}, SeqL)->
-														   SeqL -- [FecInfo#fec_info.fec_seq]
-												   end, lists:seq(0, I#fec_info.fec_gsize-1), L),
-						   lists:keydelete(0, 1, L) ++ [{MissedSeq, I#fec_info{fec_seq=MissedSeq, fec_payload_size=MissedLen}, MissedPayLoad}];
+															 SeqL -- [FecInfo#fec_info.fec_seq]
+													 end, lists:seq(1, PartyI#fec_info.fec_gsize-1), L1),
+						   %io:format("MissedSeq is ~p\n", [MissedSeq]),
+						   L1 ++ [{MissedSeq, PartyI#fec_info{fec_seq=MissedSeq, fec_payload_size=MissedLen}, MissedPayLoad}];
 					   false -> L
 				   end,
-	% TODO: Sort
+	%io:format("Completed List is ~p\n", [CompleteList]),
 	lists:map(fun ({_, I, D})->
 					  binary:part(D, {0, I#fec_info.fec_payload_size})
 			  end, CompleteList).
