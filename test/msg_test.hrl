@@ -1,23 +1,23 @@
 -include_lib("eunit/include/eunit.hrl").
  
 data_decode_test() ->
-	M = #msg{connection_id=23761278642,
+	M = #msg{
 			 code=?CODE_DATA,
 			 body=#msg_body_data{data = <<"This is a test content.">>}},
-	B = <<23761278642:64/unsigned-big-integer, ?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
+	B = <<?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
 	{ok, R} = msg:encode(M),
 	?assert( R =:= B ).
 
 data_encode_test() ->
-	M = #msg{connection_id=23761278642,
+	M = #msg{
 			 code=?CODE_DATA,
 			 body=#msg_body_data{data = <<"This is a test content.">>}},
-	B = <<23761278642:64/unsigned-big-integer, ?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
+	B = <<?CODE_DATA:8/unsigned-big-integer, <<"This is a test content.">>/binary>>,
 	{ok, R} = msg:decode(B),
 	?assert( R =:= M ).
 
 chap_encode_test() ->
-	M = #msg{ connection_id=?CONNID_CTRL,
+	M = #msg{
 		  code=?CODE_CHAP,
 		  body= #msg_body_chap{   salt = <<"SALTSALT">>,
 								  conn_id_client = 1,
@@ -25,7 +25,7 @@ chap_encode_test() ->
 								  md5 = binary:copy(<<"D">>, 16),
 								  username = <<"user1">> }},
 	{ok, B} = msg:encode(M),
-	TARGET = <<	?CONNID_CTRL:64/unsigned-big-integer,
+	TARGET = <<
 				?CODE_CHAP:8/unsigned-big-integer,
 				1:32/unsigned-big-integer,
 				<<"SALTSALT">>/binary,
@@ -36,14 +36,14 @@ chap_encode_test() ->
 	?assert( B =:= TARGET).
 
 chap_decode_test() ->
-	M = #msg{ connection_id=?CONNID_CTRL,
+	M = #msg{
 		  code=?CODE_CHAP,
 		  body= #msg_body_chap{   salt = <<"SALTSALT">>,
 								  conn_id_client = 1,
 								  prefix = "10.0.0.0/8",
 								  md5 = binary:copy(<<"D">>, 16),
 								  username = <<"user1">> }},
-	B = <<	?CONNID_CTRL:64/unsigned-big-integer,
+	B = <<
 				?CODE_CHAP:8/unsigned-big-integer,
 				1:32/unsigned-big-integer,
 				<<"SALTSALT">>/binary,
@@ -55,14 +55,14 @@ chap_decode_test() ->
 	?assert( M =:= R).
 
 connect_encode_test() ->
-	M = #msg{	connection_id=?CONNID_CTRL,
+	M = #msg{
 				code=?CODE_CHAP_CONNECT,
 				body = #msg_body_connect{	conn_id_client = 12345,
 											conn_id_server = 23456,
 											server_tun_addr= {1,2,3,4},
 											client_tun_addr = {2,3,4,5},
 											route_prefixes=[]}},
-	B = <<	?CONNID_CTRL:64/unsigned-big-integer,
+	B = <<
 			?CODE_CHAP_CONNECT:8/unsigned-big-integer,
 			12345:32/unsigned-big-integer,
 			23456:32/unsigned-big-integer,
@@ -73,14 +73,14 @@ connect_encode_test() ->
 	?assert( B =:= R ).
 
 connect_decode_test() ->
-	M = #msg{	connection_id=?CONNID_CTRL,
+	M = #msg{
 				code=?CODE_CHAP_CONNECT,
 				body = #msg_body_connect{	conn_id_client = 12345,
 											conn_id_server = 23456,
 											server_tun_addr= {1,2,3,4},
 											client_tun_addr = {2,3,4,5},
 											route_prefixes=[]}},
-	B = <<	?CONNID_CTRL:64/unsigned-big-integer,
+	B = <<
 			?CODE_CHAP_CONNECT:8/unsigned-big-integer,
 			12345:32/unsigned-big-integer,
 			23456:32/unsigned-big-integer,
