@@ -4,24 +4,22 @@
 -include("wire_frame.hrl").
 -include("fec.hrl").
 
--record(fec_decode_context, {id, width, timestamp, pool}).
-
-encode(FramePayload, Size) ->
-	Context = case get(encode_context) of
-				  undefined -> init_encode_context();
-				  C -> C
-			  end,
-	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize), fec_payload_size=Size},
-	WireFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
-	put(current_gid, next_gid(get(current_gid))),
-	put(encode_context, Context),
-	{ok, [WireFrame]}.
+encode(FramePayload, Size) ->	% Size is needed here! Since the FramePayload was encrypted!
+	Context = complish_intlv_pool(get(encode_context)),
+	[H|T] = Context#fec_encode_context.intlv_pool,
+	%FecInfo = get_fecg_fecinfo(H),
+	%FecFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
+	case fecg_encode(H, {FramePayload, Size}) of
+		{pass, NewH} ->
+			put(encode_context, Context#fec_encode_context{intlv_pool=T++[NewH]}),
+			pass;
+		{ok, WireFrames} ->
+			put(encode_context, Context#fec_encode_context{intlv_pool=T}),
+			{ok, WireFrames}
+	end.
 
 encode_push(FramePayload, Size) ->
-	Context = case get(encode_context) of
-				  undefined -> init_encode_context();
-				  C -> C
-			  end,
+	Context = get(encode_context),
 	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize), fec_payload_size=Size},
 	WireFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
 	put(current_gid, next_gid(get(current_gid))),
@@ -72,10 +70,55 @@ delta_gid(A, B) ->
 		true -> -D
 	end.
 
-init_encode_context() ->
-	ok.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%[{fec_seq, Data}]
+complish_intlv_pool(Context) ->
+	D = Context#fec_encode_context.intlv_level - length(Context#fec_encode_context.intlv_pool),
+	if
+		D > 0 ->
+			Next = Context#fec_encode_context.next_gid,
+			Range = lists:seq(Next, Next+D),
+			NewPool = Context#fec_encode_context.intlv_pool ++ 
+			lists:map(fun (N)->
+							  #fecg_encode_context{
+								 gid=N,
+								 width=Context#fec_encode_context.suggest_width}
+					  end, Range),
+			Context#fec_encode_context{next_gid=Next+D+1, intlv_pool=NewPool};
+		true -> Context
+	end.
+
+fecg_encode(FecgEncodeContext, {Bin, BinSize}) ->	% FramePayload = {Bin, Size}
+	NewPool = FecgEncodeContext#fecg_encode_context.pool ++ [{Bin, BinSize}],
+	{Party, TotalSize} = FecgEncodeContext#fecg_encode_context.party_frame,
+	NewPartyFrame = {bin_xor(Party, Bin), TotalSize+BinSize},
+	NewContext = FecgEncodeContext#fecg_encode_context{party_frame=NewPartyFrame, pool=NewPool},
+	if
+		length(NewPool) == (NewContext#fecg_encode_context.width - 1) ->	% Fully filled
+			{ok, pool_encode(NewContext)};
+		true ->
+			{pass, FecgEncodeContext#fecg_encode_context{party_frame=NewPartyFrame, pool=NewPool}}
+	end.
+
+pool_encode(C) ->
+	{B,S} = C#fecg_encode_context.party_frame,
+	[#wire_frame{
+		conn_id = get(conn_id),
+		fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
+							 fec_seq = 0,
+							 fec_gsize = C#fecg_encode_context.width,
+							 fec_payload_size = S}, payload_cipher = B}]
+	++
+	lists:foldl(fun ({Bin, Size}, {N, List})->
+						{N+1, List ++ [ #wire_frame{
+										   conn_id = get(conn_id),
+										   fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
+																fec_seq = N,
+																fec_gsize = C#fecg_encode_context.width,
+																fec_payload_size = Size}, payload_cipher = Bin}]}
+				end, {1, []}, C#fecg_encode_context.pool).
+
+%[{fec_seq, Data}, ...]
 pool_decode(L) ->
 	CompleteList = case lists:keyfind(0, 1, L) of
 					   {0, I, _} ->

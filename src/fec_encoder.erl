@@ -3,6 +3,7 @@
 -define(SERVER, ?MODULE).
 
 -include("wire_frame.hrl").
+-include("fec.hrl").
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -33,11 +34,7 @@ init([CFG]) ->
 	{ConnID} = CFG,
 	put(conn_id, ConnID),
 	put(shared_key, <<"=PRESET=">>),
-	put(gsize, 2),
-	put(interleave, 1),
-	put(timeout, 10000),
-	put(current_gid, 1),
-	put(pool, []),
+	put(encode_context, #fec_encode_context{}),
 	io:format("~p: inited ~p.\n", [?MODULE, self()]),
     {ok, loop, {}}.
 
