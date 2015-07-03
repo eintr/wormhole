@@ -20,10 +20,15 @@ encode(FramePayload, Size) ->	% Size is needed here! Since the FramePayload was 
 
 encode_push(FramePayload, Size) ->
 	Context = get(encode_context),
-	FecInfo = #fec_info{fecg_id=get(current_gid), fec_seq=1, fec_gsize=get(gsize), fec_payload_size=Size},
+	FecInfo = #fec_info{
+				 fecg_id=Context#fec_encode_context.next_gid,
+				 fec_seq=1,
+				 fec_gsize=2,
+				 fec_payload_size=Size	},
 	WireFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
-	put(current_gid, next_gid(get(current_gid))),
-	put(encode_context, Context),
+	put(encode_context, Context#fec_encode_context{
+						  next_gid=next_gid(Context#fec_encode_context.next_gid)}),
+	io:format("~p: encode_push(): ~p\n", [?MODULE, WireFrame]),
 	{ok, [WireFrame]}.
 
 decode(WireFrame) ->
