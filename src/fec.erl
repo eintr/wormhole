@@ -109,21 +109,20 @@ fecg_encode(FecgEncodeContext, {Bin, BinSize}) ->	% FramePayload = {Bin, Size}
 
 pool_encode(C) ->
 	{B,S} = C#fecg_encode_context.party_frame,
-	[#wire_frame{
-		conn_id = get(conn_id),
-		fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
-							 fec_seq = 0,
-							 fec_gsize = C#fecg_encode_context.width,
-							 fec_payload_size = S}, payload_cipher = B}]
-	++
-	lists:foldl(fun ({Bin, Size}, {N, List})->
-						{N+1, List ++ [ #wire_frame{
-										   conn_id = get(conn_id),
-										   fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
-																fec_seq = N,
-																fec_gsize = C#fecg_encode_context.width,
-																fec_payload_size = Size}, payload_cipher = Bin}]}
-				end, {1, []}, C#fecg_encode_context.pool).
+	{_, L} = lists:foldl(fun ({Bin, Size}, {N, List})->
+								 {N+1, List ++ [ #wire_frame{
+													conn_id = get(conn_id),
+													fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
+																		 fec_seq = N,
+																		 fec_gsize = C#fecg_encode_context.width,
+																		 fec_payload_size = Size}, payload_cipher = Bin}]}
+						 end, {1, []}, C#fecg_encode_context.pool),
+	L ++ [#wire_frame{
+			 conn_id = get(conn_id),
+			 fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
+								  fec_seq = 0,
+								  fec_gsize = C#fecg_encode_context.width,
+								  fec_payload_size = S}, payload_cipher = B}].
 
 %[{fec_seq, Data}, ...]
 pool_decode(L) ->
