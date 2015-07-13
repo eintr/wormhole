@@ -31,10 +31,10 @@ start_link(CFG) ->
 %% ------------------------------------------------------------------
 
 init([CFG]) ->
-	{ConnID} = CFG,
+	{ConnID, SugFecWidth} = CFG,
 	put(conn_id, ConnID),
 	put(shared_key, <<"=PRESET=">>),
-	put(encode_context, #fec_encode_context{}),
+	put(encode_context, #fec_encode_context{suggest_width=SugFecWidth}),
 	io:format("~p: inited ~p.\n", [?MODULE, self()]),
     {ok, loop, {}}.
 

@@ -43,7 +43,7 @@ init([]) ->
 	{ok, ServerAddr} = inet:parse_ipv4_address(SAddr),
 	{_, ServerPort} = lists:keyfind(server_port, 1, Config),
 
-	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL}),
+	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL, 2}),
 	put(fec_encoder, FecEncoderPid),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(fec_decoder, FecDecoderPid),

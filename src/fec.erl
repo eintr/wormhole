@@ -84,7 +84,7 @@ complish_intlv_pool(Context) ->
 	if
 		D > 0 ->
 			Next = Context#fec_encode_context.next_gid,
-			Range = lists:seq(Next, Next+D),
+			Range = lists:seq(Next, Next+D-1),
 			NewPool = Context#fec_encode_context.intlv_pool ++ 
 			lists:map(fun (N)->
 							  #fecg_encode_context{

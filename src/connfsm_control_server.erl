@@ -32,7 +32,7 @@ start_link() ->
 
 init(State) ->
 	io:format("~p: inited.\n", [?MODULE]),
-	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL}),
+	{ok, FecEncoderPid} = fec_encoder:start_link({?CONNID_CTRL, 2}),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(fec_encoder, FecEncoderPid),
 	put(fec_decoder, FecDecoderPid),

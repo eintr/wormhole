@@ -34,7 +34,7 @@ start_link(ConnCfg) ->
 
 init([{ConnID, _TunLocalIP, _TunPeerIP, PeerAddr, _ExtraRouteList} = ConnCFG]) ->
 	{ok, TunPID} = create_tun(ConnCFG),
-	{ok, FecEncoderPid} = fec_encoder:start_link({ConnID}),
+	{ok, FecEncoderPid} = fec_encoder:start_link({ConnID, 4}),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(peeraddr, [PeerAddr]),
 	{ok, relay, {ConnID, TunPID, FecEncoderPid, FecDecoderPid}}.

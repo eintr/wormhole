@@ -24,6 +24,64 @@ bin_xor_test() ->
 	?assert(fec:bin_xor(<<"abc">>, <<"abc">>) =:= <<0:24/unsigned-integer>> ),
 	?assert(fec:bin_xor(<<"abc">>, <<"abcd">>) =:= <<0:24/unsigned-integer, "d">> ).
 
+encode_w2_1_test() ->
+	put(encode_context, #fec_encode_context{suggest_width=2, next_gid=1234}),
+	put(conn_id, 12345),
+	Msg = <<"HelloHelloHelloHelloHelloHello">>,
+	F1 = #wire_frame{
+		   conn_id = 12345,
+		   fec_info = #fec_info{
+						fecg_id = 1234,
+						fec_seq = 1,
+						fec_gsize = 2,
+						fec_payload_size = 15	},
+		   payload_cipher = <<"HelloHelloHelloHelloHelloHello">>},
+	FP = #wire_frame{
+		   conn_id = 12345,
+		   fec_info = #fec_info{
+						fecg_id = 1234,
+						fec_seq = 0,
+						fec_gsize = 2,
+						fec_payload_size = 15	},
+		   payload_cipher = <<"HelloHelloHelloHelloHelloHello">>},
+	Res = fec:encode(Msg, 15),
+	?assert(Res =:= {ok, [F1, FP]}),
+	erase(conn_id),
+	erase(encode_context).
+
+encode_w3_1_test() ->
+	put(encode_context, #fec_encode_context{suggest_width=3, next_gid=1234}),
+	put(conn_id, 12345),
+	Msg = <<"HelloHelloHelloHelloHelloHello">>,
+	F1 = #wire_frame{
+		   conn_id = 12345,
+		   fec_info = #fec_info{
+						fecg_id = 1234,
+						fec_seq = 1,
+						fec_gsize = 3,
+						fec_payload_size = 15	},
+		   payload_cipher = <<"HelloHelloHelloHelloHelloHello">>},
+	F2 = #wire_frame{
+		   conn_id = 12345,
+		   fec_info = #fec_info{
+						fecg_id = 1234,
+						fec_seq = 2,
+						fec_gsize = 3,
+						fec_payload_size = 15	},
+		   payload_cipher = <<"HelloHelloHelloHelloHelloHello">>},
+	FP = #wire_frame{
+		   conn_id = 12345,
+		   fec_info = #fec_info{
+						fecg_id = 1234,
+						fec_seq = 0,
+						fec_gsize = 3,
+						fec_payload_size = 30	},
+		   payload_cipher = <<0:240/integer>>},
+	Res1 = fec:encode(Msg, 15),
+	Res2 = fec:encode(Msg, 15),
+	?assert(Res1 =:= need_more),
+	?assert(Res2 =:= {ok, [F1, F2, FP]}).
+
 decode_w2_1_test() ->
 	Msg = <<"HelloHelloHello">>,
 	F = #wire_frame{
