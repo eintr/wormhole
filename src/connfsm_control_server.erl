@@ -39,14 +39,8 @@ init(State) ->
 	put(server_conn_id, 1),
 	{ok, control, State}.
 
-control({up, FromAddr, WireFrame}, State) ->
-	case gen_fsm:sync_send_event(get(fec_decoder), {FromAddr, WireFrame}) of
-		{ok, Msgs} -> lists:foreach(fun (M)-> msg_process(FromAddr, M) end, Msgs);
-		pass -> ok;
-		_Result ->
-			io:format("~p: Unknown decode result from fec_decoder: ~p\n", [?MODULE, _Result]),
-			error
-	end,
+control({up, FromAddr, Msg}, State) ->
+	msg_process(FromAddr, Msg),
 	{next_state, control, State};
 control(_Event, State) ->
 	io:format("conn/control: Unknown event: ~p\n", [_Event]),
@@ -56,8 +50,21 @@ control(_Event, _From, State) ->
 	io:format("Unknown event: ~p from ~p\n", [_Event, _From]),
     {reply, unknown_event, control, State}.
 
+handle_event({up, FromAddr, WireFrame}, StateName, State) ->
+	case gen_fsm:sync_send_event(get(fec_decoder), {FromAddr, WireFrame}) of
+		{ok, Msgs} ->
+			lists:foreach(fun (Msg)->
+								  gen_fsm:send_event(self(), {up, FromAddr, Msg})
+						  end, Msgs),
+			{next_state, StateName, State};
+		pass ->
+			{next_state, StateName, State};
+		_Result ->
+			io:format("~p: Unknown decode result: ~p\n", [?MODULE, _Result]),
+			{next_state, StateName, State}
+	end;
 handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
+	{next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
