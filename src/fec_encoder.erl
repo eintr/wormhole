@@ -53,9 +53,9 @@ loop({encode_push, Msg}, _From, State) ->
 	%io:format("~p: Encoding with push msg ~p\n", [?MODULE, Msg]),
 	{ok, MsgBin} = msg:encode(Msg),
 	MsgBinCi = cryptor:en(MsgBin, get(shared_key)),
-	{ok, [WireFrame]} = fec:encode_push(MsgBinCi, byte_size(MsgBin)),
-	{ok, WireFrameBin} = wire_frame:encode(WireFrame),
-	{reply, {ok, [WireFrameBin]}, loop, State};
+	{ok, WireFrames} = fec:encode_push(MsgBinCi, byte_size(MsgBin)),
+	WireFramesBins = lists:map(fun (E)-> {ok, Bin} = wire_frame:encode(E), Bin end, WireFrames),
+	{reply, {ok, WireFramesBins}, loop, State};
 loop(_Event, _From, State) ->
 	io:format("~p: Donlt know how to process sync event: ~p\n", [?MODULE, _Event]),
     {reply, ok, loop, State}.

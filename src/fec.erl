@@ -1,5 +1,5 @@
 -module(fec).
--export([encode/2, encode_push/2, decode/1, next_gid/1, delta_gid/2]).
+-export([encode/2, encode_push/2, encode_push/1, encode_push_all/0, decode/1, next_gid/1, delta_gid/2]).
 
 -ifdef(TEST).
 -export([bin_xor/2]).
@@ -20,18 +20,38 @@ encode(FramePayload, Size) ->	% Size is needed here! Since the FramePayload was 
 			{ok, WireFrames}
 	end.
 
+encode_push(Gid) ->
+	Context = complish_intlv_pool(get(encode_context)),
+	case lists:filter(fun
+						  (#fecg_encode_context{gid=G}) when G=:=Gid -> true;
+						  (_) -> false
+					  end, Context#fec_encode_context.intlv_pool) of
+		[]-> not_found;
+		[G] ->
+			NewPool = Context#fec_encode_context.intlv_pool -- [G],
+			put(encode_context, Context#fec_encode_context{intlv_pool=NewPool}),
+			fecg_encode_now(G)
+	end.
+
 encode_push(FramePayload, Size) ->
-	Context = get(encode_context),
-	FecInfo = #fec_info{
-				 fecg_id=Context#fec_encode_context.next_gid,
-				 fec_seq=1,
-				 fec_gsize=2,
-				 fec_payload_size=Size	},
-	WireFrame = #wire_frame{conn_id=get(conn_id), fec_info=FecInfo, payload_cipher=FramePayload},
-	put(encode_context, Context#fec_encode_context{
-						  next_gid=next_gid(Context#fec_encode_context.next_gid)}),
-	io:format("~p: encode_push(): ~p\n", [?MODULE, WireFrame]),
-	{ok, [WireFrame]}.
+	Context = complish_intlv_pool(get(encode_context)),
+	[H|T] = Context#fec_encode_context.intlv_pool,
+	put(encode_context, Context#fec_encode_context{intlv_pool=T}),
+	case fecg_encode(H, {FramePayload, Size}) of
+		{pass, NewH} ->
+			fecg_encode_now(NewH);
+		{ok, WireFrames} ->
+			{ok, WireFrames}
+	end.
+
+encode_push_all() ->
+	Context = complish_intlv_pool(get(encode_context)),
+	Pool = Context#fec_encode_context.intlv_pool,
+	put(encode_context, Context#fec_encode_context{intlv_pool=[]}),
+	{ok, lists:flatten(
+		   lists:map(
+			 fun (G)-> {ok, List} = fecg_encode_now(G), List end,
+			 Pool))}.
 
 decode(WireFrame) ->
 	FecInfo = WireFrame#wire_frame.fec_info,
@@ -95,33 +115,37 @@ complish_intlv_pool(Context) ->
 		true -> Context
 	end.
 
-fecg_encode(FecgEncodeContext, {Bin, BinSize}) ->	% FramePayload = {Bin, Size}
+fecg_encode_now(FecgEncodeContext) ->
+	{ok, pool_encode(FecgEncodeContext)}.
+
+fecg_encode(FecgEncodeContext, {Bin, BinSize}) ->
 	NewPool = FecgEncodeContext#fecg_encode_context.pool ++ [{Bin, BinSize}],
 	{Party, TotalSize} = FecgEncodeContext#fecg_encode_context.party_frame,
 	NewPartyFrame = {bin_xor(Party, Bin), TotalSize+BinSize},
 	NewContext = FecgEncodeContext#fecg_encode_context{party_frame=NewPartyFrame, pool=NewPool},
 	if
 		length(NewPool) == (NewContext#fecg_encode_context.width - 1) ->	% Fully filled
-			{ok, pool_encode(NewContext)};
+			fecg_encode_now(NewContext);
 		true ->
 			{pass, FecgEncodeContext#fecg_encode_context{party_frame=NewPartyFrame, pool=NewPool}}
 	end.
 
 pool_encode(C) ->
+	RealWidth = length(C#fecg_encode_context.pool)+1,
 	{B,S} = C#fecg_encode_context.party_frame,
 	{_, L} = lists:foldl(fun ({Bin, Size}, {N, List})->
 								 {N+1, List ++ [ #wire_frame{
 													conn_id = get(conn_id),
 													fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
 																		 fec_seq = N,
-																		 fec_gsize = C#fecg_encode_context.width,
+																		 fec_gsize = RealWidth,
 																		 fec_payload_size = Size}, payload_cipher = Bin}]}
 						 end, {1, []}, C#fecg_encode_context.pool),
 	L ++ [#wire_frame{
 			 conn_id = get(conn_id),
 			 fec_info = #fec_info{fecg_id = C#fecg_encode_context.gid,
 								  fec_seq = 0,
-								  fec_gsize = C#fecg_encode_context.width,
+								  fec_gsize = RealWidth,
 								  fec_payload_size = S}, payload_cipher = B}].
 
 %[{fec_seq, Data}, ...]
