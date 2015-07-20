@@ -63,6 +63,7 @@ loop({_FromAddr, WireFrame}, _From, State) ->
 				{ok, PayloadCyphers} ->
 					Msgs = lists:map(fun(B)->
 											 PayLoadSize = FecInfo#fec_info.fec_payload_size,
+											 io:format("~p: Payload[~p]=~p, ~p bytes expected.\n", [?MODULE, length(B), B, length(PayLoadSize)]),
 											 <<MsgBin:PayLoadSize/binary, _/binary>>
 											 =cryptor:de(B, get(shared_key)),
 											 {ok, M} = msg:decode(MsgBin),
