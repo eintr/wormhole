@@ -37,27 +37,18 @@ init([{ConnID, _TunLocalIP, _TunPeerIP, PeerAddr, _ExtraRouteList} = ConnCFG]) -
 	{ok, FecEncoderPid} = fec_encoder:start_link({ConnID, 4}),
 	{ok, FecDecoderPid} = fec_decoder:start_link(),
 	put(peeraddr, [PeerAddr]),
-	{ok, relay, {ConnID, TunPID, FecEncoderPid, FecDecoderPid}}.
+	put(fec_decoder, FecDecoderPid),
+	put(fec_encoder, FecEncoderPid),
+	{ok, relay, {ConnID, TunPID}}.
 
-relay({up, FromAddr, FecFrame}, {_ConnID, TunPID, _FecEncoderPid, FecDecoderPid}=State) ->
-	case gen_fsm:sync_send_event(FecDecoderPid, {FromAddr, FecFrame}) of
-		{ok, Msgs} ->
-			lists:foreach(fun (Msg)->
-								  case Msg#msg.code of
-									  ?CODE_DATA ->
-										  put(peeraddr, [FromAddr]),
-										  tuncer:send(TunPID, Msg#msg.body#msg_body_data.data),
-										  {next_state, relay, State};
-									  _Unknown ->
-										  io:format("~p: Don't know how to deal with msg code ~p\n", [?MODULE, _Unknown]),
-										  {next_state, relay, State}
-								  end
-						  end, Msgs),
+relay({up, FromAddr, Msg}, {_ConnID, TunPID}=State) ->
+	case Msg#msg.code of
+		?CODE_DATA ->
+			put(peeraddr, [FromAddr]),
+			tuncer:send(TunPID, Msg#msg.body#msg_body_data.data),
 			{next_state, relay, State};
-		pass ->
-			{next_state, relay, State};
-		_Result ->
-			io:format("~p: Unknown decode result: ~p\n", [?MODULE, _Result]),
+		_Unknown ->
+			io:format("~p: Don't know how to deal with msg code ~p\n", [?MODULE, _Unknown]),
 			{next_state, relay, State}
 	end;
 relay(quit, _State) ->
@@ -72,16 +63,29 @@ relay(_Event, _From, State) ->
 	io:format("Unknown event: ~p from ~p\n", [_Event, _From]),
     {reply, ok, relay, State}.
 
+handle_event({up, FromAddr, WireFrame}, StateName, State) ->
+	case gen_fsm:sync_send_event(get(fec_decoder), {FromAddr, WireFrame}) of
+		{ok, Msgs} ->
+			lists:foreach(fun (Msg)->
+								  gen_fsm:send_event(self(), {up, FromAddr, Msg})
+						  end, Msgs),
+			{next_state, StateName, State};
+		pass ->
+			{next_state, StateName, State};
+		_Result ->
+			io:format("~p: Unknown decode result: ~p\n", [?MODULE, _Result]),
+			{next_state, StateName, State}
+	end;
 handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
+	{next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
 
-handle_info({tuntap, TunPID, TunPktBin}, relay, {_ConnID, TunPID, FecEncoderPid, _FecDecoderPid}=State) ->
+handle_info({tuntap, TunPID, TunPktBin}, relay, {_ConnID, TunPID}=State) ->
 	Msg = #msg{code=?CODE_DATA, body=#msg_body_data{data=TunPktBin}},
 	[DAddr|_] = get(peeraddr),
-	case gen_fsm:sync_send_event(FecEncoderPid, {encode, Msg}) of
+	case gen_fsm:sync_send_event(get(fec_encoder), {encode, Msg}) of
 		{ok, FecGroup} ->
 			%io:format("~p: fec_encode result: ~p\n", [?MODULE, FecGroup]),
 			lists:foreach(fun (B)->
