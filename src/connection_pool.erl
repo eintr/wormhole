@@ -66,7 +66,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({up, FromAddr, WireFrame}, State) ->
 	case get(WireFrame#wire_frame.conn_id) of
 		{Pid} ->
-			gen_fsm:send_event(Pid, {up, FromAddr, WireFrame});
+			gen_fsm:send_all_state_event(Pid, {up, FromAddr, WireFrame});
 		undefined ->
 			io:format("Got msg to unknown connection id: ~p, drop it\n", [WireFrame#wire_frame.conn_id])
 	end,
