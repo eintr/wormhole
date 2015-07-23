@@ -130,6 +130,8 @@ fecg_encode(FecgEncodeContext, {Bin, BinSize}) ->
 			{pass, FecgEncodeContext#fecg_encode_context{party_frame=NewPartyFrame, pool=NewPool}}
 	end.
 
+pool_encode(C) when length(C#fecg_encode_context.pool)==0 ->
+	[];
 pool_encode(C) ->
 	RealWidth = length(C#fecg_encode_context.pool)+1,
 	{B,S} = C#fecg_encode_context.party_frame,
