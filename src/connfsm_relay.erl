@@ -39,6 +39,8 @@ init([{ConnID, _TunLocalIP, _TunPeerIP, PeerAddr, _ExtraRouteList} = ConnCFG]) -
 	put(peeraddr, [PeerAddr]),
 	put(fec_decoder, FecDecoderPid),
 	put(fec_encoder, FecEncoderPid),
+	{ok, Tref} = timer:send_interval(200, encode_push_all),
+	put(fec_encoding_timer, Tref),
 	{ok, relay, {ConnID, TunPID}}.
 
 relay({up, FromAddr, Msg}, {_ConnID, TunPID}=State) ->
@@ -94,6 +96,13 @@ handle_info({tuntap, TunPID, TunPktBin}, relay, {_ConnID, TunPID}=State) ->
 		pass-> pass
 	end,
    	{next_state, relay, State};
+handle_info(encode_push_all, relay, State) ->
+	[DAddr|_] = get(peeraddr),
+	{ok, FecGroup} = gen_fsm:sync_send_event(get(fec_encoder), encode_push_all),
+	lists:foreach(fun (B)->
+						  gen_server:cast(transcvr_pool, {down, DAddr, B}) end,
+				  FecGroup),
+	{next_state, relay, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
