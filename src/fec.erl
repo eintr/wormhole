@@ -111,7 +111,7 @@ complish_intlv_pool(Context) ->
 								 gid=N,
 								 width=Context#fec_encode_context.suggest_width}
 					  end, Range),
-			Context#fec_encode_context{next_gid=Next+D+1, intlv_pool=NewPool};
+			Context#fec_encode_context{next_gid=Next+D, intlv_pool=NewPool};
 		true -> Context
 	end.
 
