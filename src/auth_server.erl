@@ -14,6 +14,7 @@
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
+-export([chap_digest/2]).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -33,14 +34,8 @@ init([]) ->
 
 handle_call({reload_conf, Filename}, _From, _) ->
 	{reply, ok, {load_accounts(Filename)}};
-handle_call({auth, {Username, _Salt, _MD5}}, _From, {AccountList}) ->
-	case lists:keyfind(Username, 1, AccountList) of
-		{ok, {Username, _Password, UserInfo}} ->
-			%% TODO: Do the real auth.
-			{reply, {pass, UserInfo}, {AccountList}};
-		{failed, Reason} ->
-			{reply, {failed, Reason}, {AccountList}}
-	end;
+handle_call({auth, {Username, Salt, MD5}}, _From, {AccountList}) ->
+	{reply, do_chap_auth(Username, Salt, MD5, AccountList), {AccountList}};
 handle_call(_Request, _From, State) ->
     {reply, unknown_call, State}.
 
@@ -67,4 +62,21 @@ load_accounts(Filename) ->
 			io:format("~p: AccountList not found.\n", [?MODULE]),
 			[]
 	end.
+
+do_chap_auth(Username, Salt, MD5, AccountList) ->
+	case lists:keyfind(Username, 1, AccountList) of
+		{ok, {Username, PlainPassword, _UserInfo}} ->
+			LocalMD5 = chap_digest(Salt, PlainPassword),
+			if
+				LocalMD5 =:= MD5 ->
+					pass;
+				true ->
+					{failed, "Wrong password"}
+			end;
+		false ->
+			{failed, "User not found"}
+	end.
+
+chap_digest(_Salt, _PlainPassword) ->
+	<<"Fake Digest">>.
 

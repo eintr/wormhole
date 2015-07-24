@@ -37,7 +37,12 @@ encode(Msg) ->
 							(ipaddr:addr_to_u32bin(TunAddrS))/binary,
 							(ipaddr:addr_to_u32bin(TunAddrC))/binary,
 							RoutrPrefixBin/binary >>,
-			{ok, <<	(Msg#msg.code):8/big-integer,
+			{ok, <<	(Msg#msg.code):8/unsigned-integer,
+					BodyBin/binary >>};
+		?CODE_CHAP_REJECT ->
+			BodyBin = <<	(Body#msg_body_reject.conn_id_client):32/unsigned-big-integer,
+							(Body#msg_body_reject.reason)/binary>>,
+			{ok, <<	(Msg#msg.code):8/unsigned-integer,
 					BodyBin/binary >>};
 		_Code ->
 			{error, "Unknown message code."}
@@ -66,6 +71,12 @@ decode(MsgBin) ->
 										server_tun_addr=ipaddr:u32bin_to_addr(TunAddrServer),
 										client_tun_addr=ipaddr:u32bin_to_addr(TunAddrClient),
 										route_prefixes=ipaddr:bin_to_addrlist(RoutePrefixes)},
+			{ok, #msg{code=Code, body=Body}};
+		?CODE_CHAP_REJECT ->
+			<<	ConnIDClient:32/unsigned-big-integer,
+				Reason/binary	>> = BodyBin,
+			Body = #msg_body_reject{	conn_id_client=ConnIDClient,
+										reason = Reason},
 			{ok, #msg{code=Code, body=Body}};
 		_Code ->
 			io:format("Unknown Msg code ~p\n", [_Code]),

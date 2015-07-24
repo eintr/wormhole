@@ -104,23 +104,36 @@ msg_process(FromAddr, Msg) ->
 	end.
 
 msg_process_chap(FromAddr, Msg) ->
-	%% TODO: Do the real auth!
 	%{ConnID, LocalTunIP, PeerTunIP, RemoteAddr, ExtraRouteList}
-	MsgChap = Msg#msg.body,
-	ConnID = msg:connid_combine(get(server_conn_id), MsgChap#msg_body_chap.conn_id_client),
-	LocalTunIP = {10,255,255,253},
+	#msg_body_chap{
+	   conn_id_client = ConnIdClient,
+	   salt = Salt,
+	   prefix = _Prefix,
+	   md5 = MD5,
+	   username = UserName} = Msg#msg.body,
+	ConnID = msg:connid_combine(get(server_conn_id), ConnIdClient),
+	LocalTunIP = {10,255,255,253},	% TODO: Fetch from config.
 	A4 = get(server_conn_id) rem 256,
 	A3 = (get(server_conn_id) rem 65536) div 256,
 	PeerTunIP = {172,17,A3,A4},
 
-	ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalTunIP, PeerTunIP, FromAddr, []}}),
-	MsgConnect=#msg{code=?CODE_CHAP_CONNECT,
-					body=#msg_body_connect{	conn_id_client=MsgChap#msg_body_chap.conn_id_client, 
-											conn_id_server=get(server_conn_id),
-											server_tun_addr=LocalTunIP,
-											client_tun_addr=PeerTunIP,
-											route_prefixes=[]}},
-	push_msg(FromAddr, MsgConnect),
-	put(server_conn_id, get(server_conn_id)+1),
+	case gen_server:call(auth_server, {auth, {UserName, Salt, MD5}}) of
+		{pass, _ExtraInfo} ->
+			ok = gen_server:call(connection_pool, {create_conn, {ConnID, LocalTunIP, PeerTunIP, FromAddr, []}}),
+			MsgConnect=#msg{code=?CODE_CHAP_CONNECT,
+							body=#msg_body_connect{	conn_id_client=ConnIdClient, 
+													conn_id_server=get(server_conn_id),
+													server_tun_addr=LocalTunIP,
+													client_tun_addr=PeerTunIP,
+													route_prefixes=[]}},
+			push_msg(FromAddr, MsgConnect),
+			put(server_conn_id, get(server_conn_id)+1);
+		{failed, Reason} ->
+			io:format("Auth failed: {~p,~p,~p} => ~p\n", [UserName, Salt, MD5, Reason]),
+			MsgReject=#msg{code=?CODE_CHAP_REJECT,
+						   body=#msg_body_reject{	conn_id_client=ConnIdClient,reason="CHAP Failed"}},
+			push_msg(FromAddr, MsgReject),
+			put(server_conn_id, get(server_conn_id)+1)
+	end,
 	ok.
 

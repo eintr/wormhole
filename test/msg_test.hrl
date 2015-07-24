@@ -90,6 +90,21 @@ connect_decode_test() ->
 	{ok, R} = msg:decode(B),
 	?assert( M =:= R ).
 
+reject_codec_test() ->
+	M = #msg{
+				code=?CODE_CHAP_REJECT,
+				body = #msg_body_reject{	conn_id_client = 12345,
+											reason = <<"hello">>}},
+	B = <<
+			?CODE_CHAP_REJECT:8/unsigned-big-integer,
+			12345:32/unsigned-big-integer,
+			<<"hello">>/binary
+		>>,
+	{ok, R1} = msg:encode(M),
+	{ok, R2} = msg:decode(B),
+	?assert( B =:= R1 ),
+	?assert( M =:= R2).
+
 connid_basic_test() ->
 	?assert(connid_split(16#100000002) =:= {1, 2}),
 	?assert(msg:connid_combine(1, 5) =:= 16#100000005),

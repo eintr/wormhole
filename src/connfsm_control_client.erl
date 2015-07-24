@@ -52,7 +52,7 @@ init([]) ->
 					body= #msg_body_chap{	salt=Salt,
 											conn_id_client=10001,
 											prefix=LocalNetPrefix,
-											md5=crypto:hash(md5, <<Salt/binary, Password/binary>>),
+											md5=auth_server:chap_digest(Salt, Password),
 											username=Username }},
 	push_msg({ServerAddr, ServerPort}, ChapMsg),
 	{ok, wait_chap_result, {{ServerAddr, ServerPort}, {FecEncoderPid, FecDecoderPid}}, 3141}.

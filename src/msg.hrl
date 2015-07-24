@@ -20,6 +20,12 @@
 		  route_prefixes
 		 }).
 
+-record(msg_body_reject, {
+		  conn_id_client,
+		  reason
+		 }
+).
+
 -record(msg, {
 		  code,
 		  body
