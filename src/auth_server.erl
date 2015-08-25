@@ -78,5 +78,5 @@ do_chap_auth(Username, Salt, MD5, AccountList) ->
 	end.
 
 chap_digest(_Salt, _PlainPassword) ->
-	<<"<<Fake__Digest>>">>.
+	<<"Fake_MD5_Digest.">>.
 
