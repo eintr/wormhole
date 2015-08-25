@@ -23,7 +23,7 @@ encode(Msg) ->
 							(Body#msg_body_chap.salt)/binary,
 							(ipaddr:addr_to_u32bin(Prefix))/binary,
 							Len:8/unsigned-big-integer,
-							(Body#msg_body_chap.md5)/binary,
+							(Body#msg_body_chap.md5):16/binary,
 							(Body#msg_body_chap.username)/binary
 					  >>,
 			{ok, <<	(Msg#msg.code):8/unsigned-big-integer,
