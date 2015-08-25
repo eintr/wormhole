@@ -131,7 +131,7 @@ msg_process_chap(FromAddr, Msg) ->
 		{failed, Reason} ->
 			io:format("Auth failed: {~p,~p,~p} => ~p\n", [UserName, Salt, MD5, Reason]),
 			MsgReject=#msg{code=?CODE_CHAP_REJECT,
-						   body=#msg_body_reject{	conn_id_client=ConnIdClient,reason="CHAP Failed"}},
+						   body=#msg_body_reject{	conn_id_client=ConnIdClient,reason=<<"CHAP Failed">>}},
 			push_msg(FromAddr, MsgReject),
 			put(server_conn_id, get(server_conn_id)+1)
 	end,
