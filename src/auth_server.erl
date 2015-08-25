@@ -65,7 +65,7 @@ load_accounts(Filename) ->
 
 do_chap_auth(Username, Salt, MD5, AccountList) ->
 	case lists:keyfind(Username, 1, AccountList) of
-		{ok, {Username, PlainPassword, _UserInfo}} ->
+		{Username, PlainPassword, _UserInfo} ->
 			LocalMD5 = chap_digest(Salt, PlainPassword),
 			if
 				LocalMD5 =:= MD5 ->
